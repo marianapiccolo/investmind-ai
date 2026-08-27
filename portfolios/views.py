@@ -1,7 +1,10 @@
-from rest_framework import permissions, viewsets
+from rest_framework import mixins, permissions, viewsets
 
-from .models import Portfolio
-from .serializers import PortfolioSerializer
+from .models import Portfolio, Transaction
+from .serializers import (
+    PortfolioSerializer,
+    TransactionSerializer,
+)
 
 
 class PortfolioViewSet(viewsets.ModelViewSet):
@@ -15,3 +18,19 @@ class PortfolioViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+class TransactionViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    serializer_class = TransactionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            Transaction.objects
+            .filter(portfolio__user=self.request.user)
+            .select_related("portfolio", "asset")
+        )

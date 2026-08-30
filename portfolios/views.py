@@ -1,11 +1,12 @@
 from rest_framework import mixins, permissions, viewsets
 
-from .models import Portfolio, Transaction
+from .models import Asset, Portfolio, Position, Transaction
 from .serializers import (
+    AssetSerializer,
     PortfolioSerializer,
+    PositionSerializer,
     TransactionSerializer,
 )
-
 
 class PortfolioViewSet(viewsets.ModelViewSet):
     serializer_class = PortfolioSerializer
@@ -34,3 +35,29 @@ class TransactionViewSet(
             .filter(portfolio__user=self.request.user)
             .select_related("portfolio", "asset")
         )
+    
+class AssetViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Asset.objects.all().order_by("ticker")
+    serializer_class = AssetSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+class PositionViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = PositionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = (
+            Position.objects
+            .filter(portfolio__user=self.request.user)
+            .select_related("portfolio", "asset")
+            .order_by("asset__ticker")
+        )
+
+        portfolio_id = self.request.query_params.get("portfolio")
+
+        if portfolio_id:
+            queryset = queryset.filter(
+                portfolio_id=portfolio_id
+            )
+
+        return queryset

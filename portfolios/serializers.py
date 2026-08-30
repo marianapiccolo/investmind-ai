@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .models import Asset, Portfolio, Transaction
+from .models import Asset, Portfolio, Position, Transaction
 from .services import create_transaction
 
 class PortfolioSerializer(serializers.ModelSerializer):
@@ -63,3 +63,47 @@ class TransactionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 exc.messages
             ) from exc
+        
+class AssetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Asset
+        fields = [
+            "id",
+            "ticker",
+            "name",
+            "asset_type",
+            "sector",
+            "currency",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+class PositionSerializer(serializers.ModelSerializer):
+    portfolio_name = serializers.CharField(
+        source="portfolio.name",
+        read_only=True,
+    )
+    asset_ticker = serializers.CharField(
+        source="asset.ticker",
+        read_only=True,
+    )
+    asset_name = serializers.CharField(
+        source="asset.name",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Position
+        fields = [
+            "id",
+            "portfolio",
+            "portfolio_name",
+            "asset",
+            "asset_ticker",
+            "asset_name",
+            "quantity",
+            "average_price",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields

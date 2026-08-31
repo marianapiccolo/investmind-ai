@@ -1,12 +1,20 @@
-from rest_framework import mixins, permissions, viewsets
+from rest_framework import mixins, permissions, viewsets, status
 
 from .models import Asset, Portfolio, Position, Transaction
 from .serializers import (
     AssetSerializer,
     PortfolioSerializer,
     PositionSerializer,
+    PortfolioSummarySerializer,
     TransactionSerializer,
 )
+
+from django.core.exceptions import ValidationError as DjangoValidationError
+
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from .services import get_portfolio_summary
 
 class PortfolioViewSet(viewsets.ModelViewSet):
     serializer_class = PortfolioSerializer
@@ -19,6 +27,33 @@ class PortfolioViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="summary",
+    )
+
+    def summary(self, request, pk=None):
+        portfolio = self.get_object()
+
+        try:
+            summary_data = get_portfolio_summary(
+                portfolio=portfolio
+            )
+        except DjangoValidationError as exc:
+            return Response(
+                {
+                    "detail": exc.messages,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = PortfolioSummarySerializer(
+            summary_data
+        )
+
+        return Response(serializer.data)
 
 class TransactionViewSet(
     mixins.ListModelMixin,

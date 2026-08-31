@@ -107,3 +107,45 @@ class PositionSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+class PositionSummarySerializer(serializers.Serializer):
+    asset_id = serializers.IntegerField()
+    ticker = serializers.CharField()
+    asset_name = serializers.CharField()
+
+    quantity = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=8,
+    )
+
+    average_price = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=4,
+    )
+
+    invested_amount = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    allocation_percentage = serializers.DecimalField(
+        max_digits=7,
+        decimal_places=2,
+    )
+
+
+class PortfolioSummarySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    currency = serializers.CharField()
+
+    total_invested = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    positions_count = serializers.IntegerField()
+
+    positions = PositionSummarySerializer(
+        many=True
+    )

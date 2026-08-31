@@ -127,3 +127,88 @@ def _process_sell(*, position, quantity):
             "updated_at",
         ]
     )
+
+MONEY_PRECISION = Decimal("0.0001")
+PERCENT_PRECISION = Decimal("0.01")
+
+
+def get_portfolio_summary(*, portfolio):
+    positions = list(
+        portfolio.positions
+        .select_related("asset")
+        .order_by("asset__ticker")
+    )
+
+    for position in positions:
+        if position.asset.currency != portfolio.currency:
+            raise ValidationError(
+                "Portfolio summary currently supports only "
+                "assets in the portfolio currency."
+            )
+
+    position_data = []
+
+    for position in positions:
+        invested_amount = (
+            position.quantity * position.average_price
+        ).quantize(
+            MONEY_PRECISION,
+            rounding=ROUND_HALF_UP,
+        )
+
+        position_data.append(
+            {
+                "position": position,
+                "invested_amount": invested_amount,
+            }
+        )
+
+    total_invested = sum(
+        (
+            item["invested_amount"]
+            for item in position_data
+        ),
+        Decimal("0"),
+    ).quantize(
+        MONEY_PRECISION,
+        rounding=ROUND_HALF_UP,
+    )
+
+    positions_summary = []
+
+    for item in position_data:
+        position = item["position"]
+        invested_amount = item["invested_amount"]
+
+        if total_invested == 0:
+            allocation_percentage = Decimal("0.00")
+        else:
+            allocation_percentage = (
+                invested_amount
+                / total_invested
+                * Decimal("100")
+            ).quantize(
+                PERCENT_PRECISION,
+                rounding=ROUND_HALF_UP,
+            )
+
+        positions_summary.append(
+            {
+                "asset_id": position.asset.id,
+                "ticker": position.asset.ticker,
+                "asset_name": position.asset.name,
+                "quantity": position.quantity,
+                "average_price": position.average_price,
+                "invested_amount": invested_amount,
+                "allocation_percentage": allocation_percentage,
+            }
+        )
+
+    return {
+        "id": portfolio.id,
+        "name": portfolio.name,
+        "currency": portfolio.currency,
+        "total_invested": total_invested,
+        "positions_count": len(positions),
+        "positions": positions_summary,
+    }

@@ -139,3 +139,8 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ),
 }
+
+ALPHA_VANTAGE_API_KEY = os.environ.get(
+    "ALPHA_VANTAGE_API_KEY",
+    "",
+)

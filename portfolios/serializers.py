@@ -149,3 +149,18 @@ class PortfolioSummarySerializer(serializers.Serializer):
     positions = PositionSummarySerializer(
         many=True
     )
+
+class MarketQuoteSerializer(serializers.Serializer):
+    symbol = serializers.CharField()
+
+    price = serializers.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+
+    latest_trading_day = serializers.CharField(
+        allow_null=True,
+        allow_blank=True,
+    )
+
+    provider = serializers.CharField()

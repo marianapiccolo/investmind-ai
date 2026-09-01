@@ -7,6 +7,7 @@ from .serializers import (
     PositionSerializer,
     PortfolioSummarySerializer,
     TransactionSerializer,
+    MarketQuoteSerializer,
 )
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -15,6 +16,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .services import get_portfolio_summary
+
+from .integrations.alpha_vantage import (
+    MarketDataError,
+    get_market_quote, 
+)
 
 class PortfolioViewSet(viewsets.ModelViewSet):
     serializer_class = PortfolioSerializer
@@ -75,6 +81,33 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Asset.objects.all().order_by("ticker")
     serializer_class = AssetSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="quote",
+    )
+    def quote(self, request, pk=None):
+        asset = self.get_object()
+
+        try:
+            quote_data = get_market_quote(
+                symbol=asset.ticker
+            )
+
+        except MarketDataError as exc:
+            return Response(
+                {
+                    "detail": str(exc),
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        serializer = MarketQuoteSerializer(
+            quote_data
+        )
+
+        return Response(serializer.data)
 
 class PositionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PositionSerializer

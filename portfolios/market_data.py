@@ -28,6 +28,17 @@ def get_cached_market_quote(*, symbol):
     if cached_quote is not None:
         return cached_quote
 
+    return refresh_market_quote(
+        symbol=normalized_symbol
+    )
+
+def refresh_market_quote(*, symbol):
+    normalized_symbol = symbol.strip().upper()
+
+    cache_key = (
+        f"market_quote:{normalized_symbol}"
+    )
+
     quote = get_market_quote(
         symbol=normalized_symbol
     )
@@ -38,9 +49,11 @@ def get_cached_market_quote(*, symbol):
             quote,
             timeout=settings.MARKET_QUOTE_CACHE_TIMEOUT,
         )
+
     except RedisError:
         logger.warning(
-            "Redis unavailable while writing market quote cache."
+            "Redis unavailable while writing refreshed "
+            "market quote."
         )
 
     return quote

@@ -24,6 +24,8 @@ from .services import (
 from .integrations.alpha_vantage import MarketDataError
 from .market_data import get_cached_market_quote
 
+from .tasks import refresh_market_quote_task
+
 class PortfolioViewSet(viewsets.ModelViewSet):
     serializer_class = PortfolioSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -147,6 +149,26 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
 
         return Response(serializer.data)
 
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="refresh-quote",
+        url_name="refresh-quote",
+    )
+    def refresh_quote(self, request, pk=None):
+        asset = self.get_object()
+
+        task = refresh_market_quote_task.delay(
+            asset.ticker
+        )
+
+        return Response(
+            {
+                "task_id": task.id,
+                "status": "queued",
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
 class PositionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PositionSerializer
     permission_classes = [permissions.IsAuthenticated]

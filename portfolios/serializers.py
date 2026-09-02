@@ -164,3 +164,92 @@ class MarketQuoteSerializer(serializers.Serializer):
     )
 
     provider = serializers.CharField()
+
+class MarketPositionSummarySerializer(
+    serializers.Serializer
+):
+    asset_id = serializers.IntegerField()
+    ticker = serializers.CharField()
+    asset_name = serializers.CharField()
+
+    quantity = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=8,
+    )
+
+    average_price = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=4,
+    )
+
+    current_price = serializers.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+
+    invested_amount = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    market_value = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    unrealized_profit_loss = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    return_percentage = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    allocation_percentage = serializers.DecimalField(
+        max_digits=7,
+        decimal_places=2,
+    )
+
+    latest_trading_day = serializers.CharField(
+        allow_null=True,
+        allow_blank=True,
+    )
+
+    provider = serializers.CharField()
+
+class PortfolioMarketSummarySerializer(
+    serializers.Serializer
+):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    currency = serializers.CharField()
+
+    total_invested = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    total_market_value = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    total_unrealized_profit_loss = (
+        serializers.DecimalField(
+            max_digits=28,
+            decimal_places=4,
+        )
+    )
+
+    total_return_percentage = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    positions_count = serializers.IntegerField()
+
+    positions = MarketPositionSummarySerializer(
+        many=True
+    )

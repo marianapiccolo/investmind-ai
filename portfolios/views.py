@@ -8,6 +8,7 @@ from .serializers import (
     PortfolioSummarySerializer,
     TransactionSerializer,
     MarketQuoteSerializer,
+    PortfolioMarketSummarySerializer
 )
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -15,7 +16,10 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .services import get_portfolio_summary
+from .services import (
+    get_portfolio_market_summary,
+    get_portfolio_summary,
+)
 
 from .integrations.alpha_vantage import (
     MarketDataError,
@@ -56,6 +60,42 @@ class PortfolioViewSet(viewsets.ModelViewSet):
             )
 
         serializer = PortfolioSummarySerializer(
+            summary_data
+        )
+
+        return Response(serializer.data)
+    
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="market-summary",
+        url_name="market-summary",
+    )
+    def market_summary(self, request, pk=None):
+        portfolio = self.get_object()
+
+        try:
+            summary_data = get_portfolio_market_summary(
+                portfolio=portfolio
+            )
+
+        except DjangoValidationError as exc:
+            return Response(
+                {
+                    "detail": exc.messages,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        except MarketDataError as exc:
+            return Response(
+                {
+                    "detail": str(exc),
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        serializer = PortfolioMarketSummarySerializer(
             summary_data
         )
 

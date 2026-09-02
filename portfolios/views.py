@@ -21,10 +21,8 @@ from .services import (
     get_portfolio_summary,
 )
 
-from .integrations.alpha_vantage import (
-    MarketDataError,
-    get_market_quote, 
-)
+from .integrations.alpha_vantage import MarketDataError
+from .market_data import get_cached_market_quote
 
 class PortfolioViewSet(viewsets.ModelViewSet):
     serializer_class = PortfolioSerializer
@@ -131,8 +129,8 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
         asset = self.get_object()
 
         try:
-            quote_data = get_market_quote(
-                symbol=asset.ticker
+             quote_data = get_cached_market_quote(
+             symbol=asset.ticker
             )
 
         except MarketDataError as exc:

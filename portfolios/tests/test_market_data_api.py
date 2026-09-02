@@ -32,7 +32,7 @@ class MarketDataAPITests(APITestCase):
         )
 
     @patch(
-        "portfolios.views.get_market_quote"
+        "portfolios.views.get_cached_market_quote"
     )
     def test_get_asset_quote(self, mock_get_quote):
         mock_get_quote.return_value = {

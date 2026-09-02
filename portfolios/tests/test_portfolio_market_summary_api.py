@@ -47,7 +47,7 @@ class PortfolioMarketSummaryAPITests(APITestCase):
         )
 
     @patch(
-        "portfolios.services.get_market_quote"
+        "portfolios.services.get_cached_market_quote"
     )
     def test_get_market_summary(
         self,
@@ -95,7 +95,7 @@ class PortfolioMarketSummaryAPITests(APITestCase):
         )
 
     @patch(
-        "portfolios.services.get_market_quote"
+        "portfolios.services.get_cached_market_quote"
     )
     def test_market_data_failure_returns_502(
         self,

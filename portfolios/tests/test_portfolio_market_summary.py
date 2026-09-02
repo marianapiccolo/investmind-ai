@@ -52,7 +52,7 @@ class PortfolioMarketSummaryTests(TestCase):
         )
 
     @patch(
-        "portfolios.services.get_market_quote"
+        "portfolios.services.get_cached_market_quote"
     )
     def test_market_summary_calculations(
         self,
@@ -148,7 +148,7 @@ class PortfolioMarketSummaryTests(TestCase):
         )
 
     @patch(
-        "portfolios.services.get_market_quote"
+        "portfolios.services.get_cached_market_quote"
     )
     def test_empty_portfolio_market_summary(
         self,

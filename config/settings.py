@@ -144,3 +144,27 @@ ALPHA_VANTAGE_API_KEY = os.environ.get(
     "ALPHA_VANTAGE_API_KEY",
     "",
 )
+
+REDIS_URL = os.environ.get(
+    "REDIS_URL",
+    "redis://127.0.0.1:6379/1",
+)
+
+MARKET_QUOTE_CACHE_TIMEOUT = int(
+    os.environ.get(
+        "MARKET_QUOTE_CACHE_TIMEOUT",
+        "3600",
+    )
+)
+
+
+CACHES = {
+    "default": {
+        "BACKEND": (
+            "django.core.cache.backends.redis.RedisCache"
+        ),
+        "LOCATION": REDIS_URL,
+        "KEY_PREFIX": "investmind",
+        "TIMEOUT": MARKET_QUOTE_CACHE_TIMEOUT,
+    }
+}

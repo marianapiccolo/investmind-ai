@@ -5,7 +5,7 @@ from django.db import transaction
 
 from .models import Position, Transaction
 
-from .integrations.alpha_vantage import get_market_quote
+from .market_data import get_cached_market_quote
 
 AVERAGE_PRICE_PRECISION = Decimal("0.0001")
 
@@ -222,8 +222,8 @@ def get_portfolio_market_summary(*, portfolio):
     market_positions = []
     total_market_value = Decimal("0")
 
-    for position in base_summary["positions"]:
-        quote = get_market_quote(
+    for position in base_summary["positions"]:       
+        quote = get_cached_market_quote(
             symbol=position["ticker"]
         )
 

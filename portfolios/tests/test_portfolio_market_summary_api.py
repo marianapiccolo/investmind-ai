@@ -118,3 +118,13 @@ class PortfolioMarketSummaryAPITests(APITestCase):
             response.status_code,
             status.HTTP_502_BAD_GATEWAY,
         )
+
+        self.assertEqual(
+            response.data["status_code"],
+            502,
+        )
+
+        self.assertEqual(
+            response.data["error"],
+            "market_data_unavailable",
+        )

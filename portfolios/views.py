@@ -26,6 +26,16 @@ from .market_data import get_cached_market_quote
 
 from .tasks import refresh_market_quote_task
 
+import logging
+
+from rest_framework.exceptions import (
+    ValidationError as DRFValidationError,
+)
+
+from .exceptions import MarketDataUnavailable
+
+logger = logging.getLogger(__name__)
+
 class PortfolioViewSet(viewsets.ModelViewSet):
     serializer_class = PortfolioSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -80,20 +90,19 @@ class PortfolioViewSet(viewsets.ModelViewSet):
             )
 
         except DjangoValidationError as exc:
-            return Response(
-                {
-                    "detail": exc.messages,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise DRFValidationError(
+                exc.messages
+            ) from exc
 
         except MarketDataError as exc:
-            return Response(
-                {
-                    "detail": str(exc),
-                },
-                status=status.HTTP_502_BAD_GATEWAY,
+            logger.warning(
+                "Market data unavailable: %s",
+                exc,
             )
+
+            raise MarketDataUnavailable(
+                str(exc)
+            ) from exc
 
         serializer = PortfolioMarketSummarySerializer(
             summary_data

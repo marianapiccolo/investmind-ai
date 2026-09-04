@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'drf_spectacular',
     'portfolios',
     'rest_framework',
 ]
@@ -141,6 +142,10 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ),
 
+    "DEFAULT_SCHEMA_CLASS": (
+    "drf_spectacular.openapi.AutoSchema"
+    ),
+
     "EXCEPTION_HANDLER": (
     "config.exception_handler."
     "api_exception_handler"
@@ -235,4 +240,15 @@ LOGGING = {
             "propagate": False,
         },
     },
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "InvestMind AI API",
+    "DESCRIPTION": (
+        "REST API for investment portfolio management, "
+        "market data analytics and AI-powered insights."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
 }

@@ -19,18 +19,31 @@ def get_cached_market_quote(*, symbol):
 
     try:
         cached_quote = cache.get(cache_key)
+
     except RedisError:
         cached_quote = None
+
         logger.warning(
             "Redis unavailable while reading market quote cache."
         )
 
     if cached_quote is not None:
+        logger.debug(
+            "Market quote cache hit for symbol=%s",
+            normalized_symbol,
+        )
+
         return cached_quote
+
+    logger.debug(
+        "Market quote cache miss for symbol=%s",
+        normalized_symbol,
+    )
 
     return refresh_market_quote(
         symbol=normalized_symbol
     )
+
 
 def refresh_market_quote(*, symbol):
     normalized_symbol = symbol.strip().upper()

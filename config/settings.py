@@ -140,6 +140,11 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
+
+    "EXCEPTION_HANDLER": (
+    "config.exception_handler."
+    "api_exception_handler"
+    ),
 }
 
 ALPHA_VANTAGE_API_KEY = os.environ.get(
@@ -191,5 +196,43 @@ CELERY_BEAT_SCHEDULE = {
             hour=22,
             day_of_week="1-5",
         ),
+    },
+}
+
+DJANGO_LOG_LEVEL = os.environ.get(
+    "DJANGO_LOG_LEVEL",
+    "INFO",
+)
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "formatters": {
+        "verbose": {
+            "format": (
+                "{asctime} "
+                "{levelname} "
+                "{name} "
+                "{message}"
+            ),
+            "style": "{",
+        },
+    },
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+
+    "loggers": {
+        "portfolios": {
+            "handlers": ["console"],
+            "level": DJANGO_LOG_LEVEL,
+            "propagate": False,
+        },
     },
 }

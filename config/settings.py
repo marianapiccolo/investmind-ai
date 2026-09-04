@@ -14,6 +14,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from celery.schedules import crontab
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -175,3 +177,19 @@ CELERY_BROKER_URL = os.environ.get(
 )
 
 CELERY_TASK_IGNORE_RESULT = True
+
+CELERY_TIMEZONE = "UTC"
+
+CELERY_BEAT_SCHEDULE = {
+    "refresh-active-market-quotes-weekdays": {
+        "task": (
+            "portfolios.tasks."
+            "schedule_active_market_quote_refreshes"
+        ),
+        "schedule": crontab(
+            minute=30,
+            hour=22,
+            day_of_week="1-5",
+        ),
+    },
+}

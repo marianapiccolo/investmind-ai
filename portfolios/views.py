@@ -1,4 +1,4 @@
-from rest_framework import mixins, permissions, viewsets, status
+from rest_framework import mixins, permissions, viewsets, status, serializers
 
 from .models import Asset, Portfolio, Position, Transaction
 from .serializers import (
@@ -34,7 +34,19 @@ from rest_framework.exceptions import (
 
 from .exceptions import MarketDataUnavailable
 
+from drf_spectacular.utils import (
+    extend_schema,
+)
+
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    extend_schema,
+    extend_schema_view,
+    inline_serializer,
+)
+
 logger = logging.getLogger(__name__)
+
 
 class PortfolioViewSet(viewsets.ModelViewSet):
     serializer_class = PortfolioSerializer
@@ -47,6 +59,17 @@ class PortfolioViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @extend_schema(
+        summary="Get portfolio cost summary",
+        description=(
+            "Returns invested amount and cost-based "
+            "allocation for the portfolio."
+        ),
+        responses={
+            200: PortfolioSummarySerializer,
+        },
+    )
 
     @action(
         detail=True,
@@ -75,6 +98,17 @@ class PortfolioViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Get portfolio market summary",
+        description=(
+            "Returns current market value, unrealized "
+            "profit/loss, return percentage and current "
+            "allocation using market quotes."
+        ),
+        responses={
+            200: PortfolioMarketSummarySerializer,
+        },
+    )
     @action(
         detail=True,
         methods=["get"],
@@ -131,6 +165,17 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AssetSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        summary="Get latest asset quote",
+        description=(
+            "Returns the latest available market quote "
+            "for an asset. Cached data is used when available."
+        ),
+        responses={
+            200: MarketQuoteSerializer,
+        },
+    )
+
     @action(
         detail=True,
         methods=["get"],
@@ -158,6 +203,23 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
 
         return Response(serializer.data)
 
+    @extend_schema(
+        summary="Queue asset quote refresh",
+        description=(
+            "Queues an asynchronous Celery task that "
+            "refreshes the market quote for this asset."
+        ),
+        request=None,
+        responses={
+            202: inline_serializer(
+                name="QuoteRefreshQueuedResponse",
+                fields={
+                    "task_id": serializers.CharField(),
+                    "status": serializers.CharField(),
+                },
+            ),
+        },
+    )
     @action(
         detail=True,
         methods=["post"],
@@ -178,6 +240,24 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
             },
             status=status.HTTP_202_ACCEPTED,
         )
+    
+@extend_schema_view(
+    list=extend_schema(
+        summary="List portfolio positions",
+        parameters=[
+            OpenApiParameter(
+                name="portfolio",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description=(
+                    "Filter positions by portfolio ID."
+                ),
+            ),
+        ],
+    ),
+)
+
 class PositionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PositionSerializer
     permission_classes = [permissions.IsAuthenticated]

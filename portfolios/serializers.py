@@ -5,6 +5,22 @@ from .models import Asset, Portfolio, Position, Transaction
 from .services import create_transaction
 
 class PortfolioSerializer(serializers.ModelSerializer):
+
+    def validate_currency(self, value):
+        normalized_currency = (
+            value.strip().upper()
+        )
+
+        if (
+            len(normalized_currency) != 3
+            or not normalized_currency.isalpha()
+        ):
+            raise serializers.ValidationError(
+                "Currency must be a three-letter code."
+            )
+
+        return normalized_currency
+    
     class Meta:
         model = Portfolio
         fields = [

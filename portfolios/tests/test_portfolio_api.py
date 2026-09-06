@@ -75,3 +75,47 @@ class PortfolioAPITests(APITestCase):
         )
 
         self.assertEqual(portfolio.user, self.user)
+
+    def test_invalid_currency_is_rejected(self):
+        self.client.force_authenticate(
+            user=self.user
+        )
+
+        response = self.client.post(
+            reverse("portfolio-list"),
+            {
+                "name": "Invalid Portfolio",
+                "currency": "EURO",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+    def test_currency_is_normalized_to_uppercase(
+    self,
+    ):
+        self.client.force_authenticate(
+            user=self.user
+        )
+
+        response = self.client.post(
+            reverse("portfolio-list"),
+            {
+                "name": "EUR Portfolio",
+                "currency": "eur",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        self.assertEqual(
+            response.data["currency"],
+            "EUR",
+        )

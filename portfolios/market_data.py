@@ -6,16 +6,13 @@ from redis.exceptions import RedisError
 
 from .integrations.alpha_vantage import get_market_quote
 
-
 logger = logging.getLogger(__name__)
 
 
 def get_cached_market_quote(*, symbol):
     normalized_symbol = symbol.strip().upper()
 
-    cache_key = (
-        f"market_quote:{normalized_symbol}"
-    )
+    cache_key = f"market_quote:{normalized_symbol}"
 
     try:
         cached_quote = cache.get(cache_key)
@@ -23,9 +20,7 @@ def get_cached_market_quote(*, symbol):
     except RedisError:
         cached_quote = None
 
-        logger.warning(
-            "Redis unavailable while reading market quote cache."
-        )
+        logger.warning("Redis unavailable while reading market quote cache.")
 
     if cached_quote is not None:
         logger.debug(
@@ -40,21 +35,15 @@ def get_cached_market_quote(*, symbol):
         normalized_symbol,
     )
 
-    return refresh_market_quote(
-        symbol=normalized_symbol
-    )
+    return refresh_market_quote(symbol=normalized_symbol)
 
 
 def refresh_market_quote(*, symbol):
     normalized_symbol = symbol.strip().upper()
 
-    cache_key = (
-        f"market_quote:{normalized_symbol}"
-    )
+    cache_key = f"market_quote:{normalized_symbol}"
 
-    quote = get_market_quote(
-        symbol=normalized_symbol
-    )
+    quote = get_market_quote(symbol=normalized_symbol)
 
     try:
         cache.set(
@@ -64,9 +53,6 @@ def refresh_market_quote(*, symbol):
         )
 
     except RedisError:
-        logger.warning(
-            "Redis unavailable while writing refreshed "
-            "market quote."
-        )
+        logger.warning("Redis unavailable while writing refreshed market quote.")
 
     return quote

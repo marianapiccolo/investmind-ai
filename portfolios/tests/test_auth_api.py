@@ -1,6 +1,5 @@
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -65,9 +64,7 @@ class JWTAuthenticationTests(APITestCase):
 
         access_token = token_response.data["access"]
 
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {access_token}"
-        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
 
         url = reverse("portfolio-list")
 

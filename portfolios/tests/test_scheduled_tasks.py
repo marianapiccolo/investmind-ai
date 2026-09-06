@@ -60,17 +60,12 @@ class ScheduledMarketRefreshTests(TestCase):
             average_price=Decimal("400"),
         )
 
-    @patch(
-        "portfolios.tasks."
-        "refresh_market_quote_task.delay"
-    )
+    @patch("portfolios.tasks.refresh_market_quote_task.delay")
     def test_schedules_only_assets_with_positions(
         self,
         mock_delay,
     ):
-        result = (
-            schedule_active_market_quote_refreshes.run()
-        )
+        result = schedule_active_market_quote_refreshes.run()
 
         self.assertEqual(result, 2)
 
@@ -87,10 +82,7 @@ class ScheduledMarketRefreshTests(TestCase):
             any_order=False,
         )
 
-    @patch(
-        "portfolios.tasks."
-        "refresh_market_quote_task.delay"
-    )
+    @patch("portfolios.tasks.refresh_market_quote_task.delay")
     def test_same_asset_is_scheduled_only_once(
         self,
         mock_delay,
@@ -118,9 +110,7 @@ class ScheduledMarketRefreshTests(TestCase):
         schedule_active_market_quote_refreshes.run()
 
         aapl_calls = [
-            item
-            for item in mock_delay.call_args_list
-            if item == call("AAPL")
+            item for item in mock_delay.call_args_list if item == call("AAPL")
         ]
 
         self.assertEqual(

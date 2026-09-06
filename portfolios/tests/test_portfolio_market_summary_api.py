@@ -3,15 +3,14 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-
 from rest_framework import status
 from rest_framework.test import APITestCase
-
-from portfolios.models import Asset, Portfolio, Position
 
 from portfolios.integrations.alpha_vantage import (
     MarketDataError,
 )
+from portfolios.models import Asset, Portfolio, Position
+
 
 class PortfolioMarketSummaryAPITests(APITestCase):
     def setUp(self):
@@ -42,13 +41,9 @@ class PortfolioMarketSummaryAPITests(APITestCase):
             average_price=Decimal("100"),
         )
 
-        self.client.force_authenticate(
-            user=self.user
-        )
+        self.client.force_authenticate(user=self.user)
 
-    @patch(
-        "portfolios.services.get_cached_market_quote"
-    )
+    @patch("portfolios.services.get_cached_market_quote")
     def test_get_market_summary(
         self,
         mock_get_market_quote,
@@ -83,9 +78,7 @@ class PortfolioMarketSummaryAPITests(APITestCase):
         )
 
         self.assertEqual(
-            response.data[
-                "total_unrealized_profit_loss"
-            ],
+            response.data["total_unrealized_profit_loss"],
             "300.0000",
         )
 
@@ -94,17 +87,13 @@ class PortfolioMarketSummaryAPITests(APITestCase):
             "30.00",
         )
 
-    @patch(
-        "portfolios.services.get_cached_market_quote"
-    )
+    @patch("portfolios.services.get_cached_market_quote")
     def test_market_data_failure_returns_502(
         self,
         mock_get_market_quote,
     ):
-        mock_get_market_quote.side_effect = (
-            MarketDataError(
-                "Market provider unavailable."
-            )
+        mock_get_market_quote.side_effect = MarketDataError(
+            "Market provider unavailable."
         )
 
         url = reverse(
@@ -127,4 +116,32 @@ class PortfolioMarketSummaryAPITests(APITestCase):
         self.assertEqual(
             response.data["error"],
             "market_data_unavailable",
+        )
+
+    def test_cannot_access_another_users_market_summary(
+        self,
+    ):
+        User = get_user_model()
+
+        other_user = User.objects.create_user(
+            username="anotheruser",
+            password="test123",
+        )
+
+        other_portfolio = Portfolio.objects.create(
+            user=other_user,
+            name="Private Portfolio",
+            currency="EUR",
+        )
+
+        url = reverse(
+            "portfolio-market-summary",
+            args=[other_portfolio.id],
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_404_NOT_FOUND,
         )

@@ -11,12 +11,9 @@ from portfolios.tasks import (
     refresh_market_quote_task,
 )
 
-
 TEST_CACHES = {
     "default": {
-        "BACKEND": (
-            "django.core.cache.backends.locmem.LocMemCache"
-        ),
+        "BACKEND": ("django.core.cache.backends.locmem.LocMemCache"),
     }
 }
 
@@ -29,9 +26,7 @@ class MarketDataTaskTests(SimpleTestCase):
     def setUp(self):
         cache.clear()
 
-    @patch(
-        "portfolios.market_data.get_market_quote"
-    )
+    @patch("portfolios.market_data.get_market_quote")
     def test_refresh_task_updates_cache(
         self,
         mock_get_market_quote,
@@ -43,13 +38,9 @@ class MarketDataTaskTests(SimpleTestCase):
             "provider": "alpha_vantage",
         }
 
-        refresh_market_quote_task.run(
-            "AAPL"
-        )
+        refresh_market_quote_task.run("AAPL")
 
-        cached_quote = cache.get(
-            "market_quote:AAPL"
-        )
+        cached_quote = cache.get("market_quote:AAPL")
 
         self.assertIsNotNone(cached_quote)
 

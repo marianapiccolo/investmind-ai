@@ -1,50 +1,37 @@
-from rest_framework import mixins, permissions, viewsets, status, serializers
-
-from .models import Asset, Portfolio, Position, Transaction
-from .serializers import (
-    AssetSerializer,
-    PortfolioSerializer,
-    PositionSerializer,
-    PortfolioSummarySerializer,
-    TransactionSerializer,
-    MarketQuoteSerializer,
-    PortfolioMarketSummarySerializer
-)
-
-from django.core.exceptions import ValidationError as DjangoValidationError
-
-from rest_framework.decorators import action
-from rest_framework.response import Response
-
-from .services import (
-    get_portfolio_market_summary,
-    get_portfolio_summary,
-)
-
-from .integrations.alpha_vantage import MarketDataError
-from .market_data import get_cached_market_quote
-
-from .tasks import refresh_market_quote_task
-
 import logging
 
-from rest_framework.exceptions import (
-    ValidationError as DRFValidationError,
-)
-
-from .exceptions import MarketDataUnavailable
-
-from drf_spectacular.utils import (
-    extend_schema,
-)
-
+from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.utils import (
     OpenApiParameter,
     extend_schema,
     extend_schema_view,
     inline_serializer,
 )
+from rest_framework import mixins, permissions, serializers, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import (
+    ValidationError as DRFValidationError,
+)
+from rest_framework.response import Response
 
+from .exceptions import MarketDataUnavailable
+from .integrations.alpha_vantage import MarketDataError
+from .market_data import get_cached_market_quote
+from .models import Asset, Portfolio, Position, Transaction
+from .serializers import (
+    AssetSerializer,
+    MarketQuoteSerializer,
+    PortfolioMarketSummarySerializer,
+    PortfolioSerializer,
+    PortfolioSummarySerializer,
+    PositionSerializer,
+    TransactionSerializer,
+)
+from .services import (
+    get_portfolio_market_summary,
+    get_portfolio_summary,
+)
+from .tasks import refresh_market_quote_task
 from .throttles import (
     MarketRefreshThrottle,
 )
@@ -57,9 +44,7 @@ class PortfolioViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Portfolio.objects.filter(
-            user=self.request.user
-        ).order_by("-created_at")
+        return Portfolio.objects.filter(user=self.request.user).order_by("-created_at")
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -67,27 +52,22 @@ class PortfolioViewSet(viewsets.ModelViewSet):
     @extend_schema(
         summary="Get portfolio cost summary",
         description=(
-            "Returns invested amount and cost-based "
-            "allocation for the portfolio."
+            "Returns invested amount and cost-based allocation for the portfolio."
         ),
         responses={
             200: PortfolioSummarySerializer,
         },
     )
-
     @action(
         detail=True,
         methods=["get"],
         url_path="summary",
     )
-
     def summary(self, request, pk=None):
         portfolio = self.get_object()
 
         try:
-            summary_data = get_portfolio_summary(
-                portfolio=portfolio
-            )
+            summary_data = get_portfolio_summary(portfolio=portfolio)
         except DjangoValidationError as exc:
             return Response(
                 {
@@ -96,12 +76,10 @@ class PortfolioViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        serializer = PortfolioSummarySerializer(
-            summary_data
-        )
+        serializer = PortfolioSummarySerializer(summary_data)
 
         return Response(serializer.data)
-    
+
     @extend_schema(
         summary="Get portfolio market summary",
         description=(
@@ -123,14 +101,10 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         portfolio = self.get_object()
 
         try:
-            summary_data = get_portfolio_market_summary(
-                portfolio=portfolio
-            )
+            summary_data = get_portfolio_market_summary(portfolio=portfolio)
 
         except DjangoValidationError as exc:
-            raise DRFValidationError(
-                exc.messages
-            ) from exc
+            raise DRFValidationError(exc.messages) from exc
 
         except MarketDataError as exc:
             logger.warning(
@@ -138,15 +112,12 @@ class PortfolioViewSet(viewsets.ModelViewSet):
                 exc,
             )
 
-            raise MarketDataUnavailable(
-                str(exc)
-            ) from exc
+            raise MarketDataUnavailable(str(exc)) from exc
 
-        serializer = PortfolioMarketSummarySerializer(
-            summary_data
-        )
+        serializer = PortfolioMarketSummarySerializer(summary_data)
 
         return Response(serializer.data)
+
 
 class TransactionViewSet(
     mixins.ListModelMixin,
@@ -158,12 +129,11 @@ class TransactionViewSet(
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return (
-            Transaction.objects
-            .filter(portfolio__user=self.request.user)
-            .select_related("portfolio", "asset")
-        )
-    
+        return Transaction.objects.filter(
+            portfolio__user=self.request.user
+        ).select_related("portfolio", "asset")
+
+
 class AssetViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Asset.objects.all().order_by("ticker")
     serializer_class = AssetSerializer
@@ -179,7 +149,6 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
             200: MarketQuoteSerializer,
         },
     )
-
     @action(
         detail=True,
         methods=["get"],
@@ -189,9 +158,7 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
         asset = self.get_object()
 
         try:
-             quote_data = get_cached_market_quote(
-             symbol=asset.ticker
-            )
+            quote_data = get_cached_market_quote(symbol=asset.ticker)
 
         except MarketDataError as exc:
             return Response(
@@ -201,9 +168,7 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
-        serializer = MarketQuoteSerializer(
-            quote_data
-        )
+        serializer = MarketQuoteSerializer(quote_data)
 
         return Response(serializer.data)
 
@@ -229,16 +194,12 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
         methods=["post"],
         url_path="refresh-quote",
         url_name="refresh-quote",
-        throttle_classes=[
-            MarketRefreshThrottle
-        ],
+        throttle_classes=[MarketRefreshThrottle],
     )
     def refresh_quote(self, request, pk=None):
         asset = self.get_object()
 
-        task = refresh_market_quote_task.delay(
-            asset.ticker
-        )
+        task = refresh_market_quote_task.delay(asset.ticker)
 
         return Response(
             {
@@ -247,7 +208,8 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
             },
             status=status.HTTP_202_ACCEPTED,
         )
-    
+
+
 @extend_schema_view(
     list=extend_schema(
         summary="List portfolio positions",
@@ -257,22 +219,18 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
                 type=int,
                 location=OpenApiParameter.QUERY,
                 required=False,
-                description=(
-                    "Filter positions by portfolio ID."
-                ),
+                description=("Filter positions by portfolio ID."),
             ),
         ],
     ),
 )
-
 class PositionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PositionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         queryset = (
-            Position.objects
-            .filter(portfolio__user=self.request.user)
+            Position.objects.filter(portfolio__user=self.request.user)
             .select_related("portfolio", "asset")
             .order_by("asset__ticker")
         )
@@ -280,8 +238,6 @@ class PositionViewSet(viewsets.ReadOnlyModelViewSet):
         portfolio_id = self.request.query_params.get("portfolio")
 
         if portfolio_id:
-            queryset = queryset.filter(
-                portfolio_id=portfolio_id
-            )
+            queryset = queryset.filter(portfolio_id=portfolio_id)
 
         return queryset

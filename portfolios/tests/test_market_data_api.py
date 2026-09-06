@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -27,13 +26,9 @@ class MarketDataAPITests(APITestCase):
             currency="USD",
         )
 
-        self.client.force_authenticate(
-            user=self.user
-        )
+        self.client.force_authenticate(user=self.user)
 
-    @patch(
-        "portfolios.views.get_cached_market_quote"
-    )
+    @patch("portfolios.views.get_cached_market_quote")
     def test_get_asset_quote(self, mock_get_quote):
         mock_get_quote.return_value = {
             "symbol": "AAPL",

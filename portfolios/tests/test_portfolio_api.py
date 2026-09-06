@@ -1,6 +1,5 @@
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -70,16 +69,12 @@ class PortfolioAPITests(APITestCase):
             status.HTTP_201_CREATED,
         )
 
-        portfolio = Portfolio.objects.get(
-            name="Retirement Portfolio"
-        )
+        portfolio = Portfolio.objects.get(name="Retirement Portfolio")
 
         self.assertEqual(portfolio.user, self.user)
 
     def test_invalid_currency_is_rejected(self):
-        self.client.force_authenticate(
-            user=self.user
-        )
+        self.client.force_authenticate(user=self.user)
 
         response = self.client.post(
             reverse("portfolio-list"),
@@ -94,12 +89,11 @@ class PortfolioAPITests(APITestCase):
             response.status_code,
             status.HTTP_400_BAD_REQUEST,
         )
+
     def test_currency_is_normalized_to_uppercase(
-    self,
+        self,
     ):
-        self.client.force_authenticate(
-            user=self.user
-        )
+        self.client.force_authenticate(user=self.user)
 
         response = self.client.post(
             reverse("portfolio-list"),

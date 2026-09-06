@@ -1,5 +1,4 @@
 from django.urls import reverse
-
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -8,9 +7,7 @@ class APIErrorFormatTests(APITestCase):
     def test_unauthenticated_request_has_standard_error_format(
         self,
     ):
-        url = reverse(
-            "portfolio-list"
-        )
+        url = reverse("portfolio-list")
 
         response = self.client.get(url)
 

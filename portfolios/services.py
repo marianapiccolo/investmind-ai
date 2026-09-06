@@ -1,11 +1,10 @@
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from .models import Position, Transaction
-
 from .market_data import get_cached_market_quote
+from .models import Position, Transaction
 
 AVERAGE_PRICE_PRECISION = Decimal("0.0001")
 
@@ -82,9 +81,7 @@ def _process_buy(*, portfolio, asset, position, quantity, price):
 
     new_quantity = position.quantity + quantity
 
-    new_average_price = (
-        (current_cost + purchase_cost) / new_quantity
-    ).quantize(
+    new_average_price = ((current_cost + purchase_cost) / new_quantity).quantize(
         AVERAGE_PRICE_PRECISION,
         rounding=ROUND_HALF_UP,
     )
@@ -105,9 +102,7 @@ def _process_buy(*, portfolio, asset, position, quantity, price):
 
 def _process_sell(*, position, quantity):
     if position is None:
-        raise ValidationError(
-            "Cannot sell an asset that is not in the portfolio."
-        )
+        raise ValidationError("Cannot sell an asset that is not in the portfolio.")
 
     if quantity > position.quantity:
         raise ValidationError(
@@ -129,15 +124,14 @@ def _process_sell(*, position, quantity):
         ]
     )
 
+
 MONEY_PRECISION = Decimal("0.0001")
 PERCENT_PRECISION = Decimal("0.01")
 
 
 def get_portfolio_summary(*, portfolio):
     positions = list(
-        portfolio.positions
-        .select_related("asset")
-        .order_by("asset__ticker")
+        portfolio.positions.select_related("asset").order_by("asset__ticker")
     )
 
     for position in positions:
@@ -150,9 +144,7 @@ def get_portfolio_summary(*, portfolio):
     position_data = []
 
     for position in positions:
-        invested_amount = (
-            position.quantity * position.average_price
-        ).quantize(
+        invested_amount = (position.quantity * position.average_price).quantize(
             MONEY_PRECISION,
             rounding=ROUND_HALF_UP,
         )
@@ -165,10 +157,7 @@ def get_portfolio_summary(*, portfolio):
         )
 
     total_invested = sum(
-        (
-            item["invested_amount"]
-            for item in position_data
-        ),
+        (item["invested_amount"] for item in position_data),
         Decimal("0"),
     ).quantize(
         MONEY_PRECISION,
@@ -185,9 +174,7 @@ def get_portfolio_summary(*, portfolio):
             allocation_percentage = Decimal("0.00")
         else:
             allocation_percentage = (
-                invested_amount
-                / total_invested
-                * Decimal("100")
+                invested_amount / total_invested * Decimal("100")
             ).quantize(
                 PERCENT_PRECISION,
                 rounding=ROUND_HALF_UP,
@@ -214,31 +201,24 @@ def get_portfolio_summary(*, portfolio):
         "positions": positions_summary,
     }
 
+
 def get_portfolio_market_summary(*, portfolio):
-    base_summary = get_portfolio_summary(
-        portfolio=portfolio
-    )
+    base_summary = get_portfolio_summary(portfolio=portfolio)
 
     market_positions = []
     total_market_value = Decimal("0")
 
-    for position in base_summary["positions"]:       
-        quote = get_cached_market_quote(
-            symbol=position["ticker"]
-        )
+    for position in base_summary["positions"]:
+        quote = get_cached_market_quote(symbol=position["ticker"])
 
         current_price = quote["price"]
 
-        market_value = (
-            position["quantity"] * current_price
-        ).quantize(
+        market_value = (position["quantity"] * current_price).quantize(
             MONEY_PRECISION,
             rounding=ROUND_HALF_UP,
         )
 
-        unrealized_profit_loss = (
-            market_value - position["invested_amount"]
-        ).quantize(
+        unrealized_profit_loss = (market_value - position["invested_amount"]).quantize(
             MONEY_PRECISION,
             rounding=ROUND_HALF_UP,
         )
@@ -247,9 +227,7 @@ def get_portfolio_market_summary(*, portfolio):
             return_percentage = Decimal("0.00")
         else:
             return_percentage = (
-                unrealized_profit_loss
-                / position["invested_amount"]
-                * Decimal("100")
+                unrealized_profit_loss / position["invested_amount"] * Decimal("100")
             ).quantize(
                 PERCENT_PRECISION,
                 rounding=ROUND_HALF_UP,
@@ -264,9 +242,7 @@ def get_portfolio_market_summary(*, portfolio):
                 "market_value": market_value,
                 "unrealized_profit_loss": unrealized_profit_loss,
                 "return_percentage": return_percentage,
-                "latest_trading_day": quote[
-                    "latest_trading_day"
-                ],
+                "latest_trading_day": quote["latest_trading_day"],
                 "provider": quote["provider"],
             }
         )
@@ -277,8 +253,7 @@ def get_portfolio_market_summary(*, portfolio):
     )
 
     total_unrealized_profit_loss = (
-        total_market_value
-        - base_summary["total_invested"]
+        total_market_value - base_summary["total_invested"]
     ).quantize(
         MONEY_PRECISION,
         rounding=ROUND_HALF_UP,
@@ -301,17 +276,13 @@ def get_portfolio_market_summary(*, portfolio):
             allocation_percentage = Decimal("0.00")
         else:
             allocation_percentage = (
-                position["market_value"]
-                / total_market_value
-                * Decimal("100")
+                position["market_value"] / total_market_value * Decimal("100")
             ).quantize(
                 PERCENT_PRECISION,
                 rounding=ROUND_HALF_UP,
             )
 
-        position["allocation_percentage"] = (
-            allocation_percentage
-        )
+        position["allocation_percentage"] = allocation_percentage
 
     return {
         "id": base_summary["id"],
@@ -319,14 +290,8 @@ def get_portfolio_market_summary(*, portfolio):
         "currency": base_summary["currency"],
         "total_invested": base_summary["total_invested"],
         "total_market_value": total_market_value,
-        "total_unrealized_profit_loss": (
-            total_unrealized_profit_loss
-        ),
-        "total_return_percentage": (
-            total_return_percentage
-        ),
-        "positions_count": base_summary[
-            "positions_count"
-        ],
+        "total_unrealized_profit_loss": (total_unrealized_profit_loss),
+        "total_return_percentage": (total_return_percentage),
+        "positions_count": base_summary["positions_count"],
         "positions": market_positions,
     }

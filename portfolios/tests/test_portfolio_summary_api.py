@@ -2,7 +2,6 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -49,9 +48,7 @@ class PortfolioSummaryAPITests(APITestCase):
             average_price=Decimal("100"),
         )
 
-        self.client.force_authenticate(
-            user=self.user
-        )
+        self.client.force_authenticate(user=self.user)
 
     def test_get_portfolio_summary(self):
         url = reverse(

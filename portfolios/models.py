@@ -1,5 +1,6 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
+
 
 class Portfolio(models.Model):
     name = models.CharField(max_length=100)
@@ -14,6 +15,7 @@ class Portfolio(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class Asset(models.Model):
     class AssetType(models.TextChoices):
@@ -36,7 +38,8 @@ class Asset(models.Model):
 
     def __str__(self):
         return f"{self.ticker} - {self.name}"
-    
+
+
 class Position(models.Model):
     portfolio = models.ForeignKey(
         Portfolio,
@@ -69,7 +72,8 @@ class Position(models.Model):
 
     def __str__(self):
         return f"{self.portfolio.name} - {self.asset.ticker}"
-    
+
+
 class Transaction(models.Model):
     class TransactionType(models.TextChoices):
         BUY = "BUY", "Buy"
@@ -114,7 +118,4 @@ class Transaction(models.Model):
         ]
 
     def __str__(self):
-        return (
-            f"{self.transaction_type} "
-            f"{self.quantity} {self.asset.ticker}"
-        )
+        return f"{self.transaction_type} {self.quantity} {self.asset.ticker}"

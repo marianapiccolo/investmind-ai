@@ -16,6 +16,33 @@ from dotenv import load_dotenv
 
 from celery.schedules import crontab
 
+from datetime import timedelta
+
+def env_bool(name, default=False):
+    value = os.environ.get(
+        name,
+        str(default),
+    )
+
+    return value.lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+def env_list(name, default=""):
+    value = os.environ.get(
+        name,
+        default,
+    )
+
+    return [
+        item.strip()
+        for item in value.split(",")
+        if item.strip()
+    ]
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -24,13 +51,18 @@ load_dotenv(BASE_DIR / ".env")
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-037%3+#8k^o6)m^krlasc8adpe@f!8+0iryh3i&_2(u6%@3id4'
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool(
+    "DJANGO_DEBUG",
+    True,
+)
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = env_list(
+    "DJANGO_ALLOWED_HOSTS",
+    "127.0.0.1,localhost",
+)
 
 # Application definition
 
@@ -137,9 +169,14 @@ MAILERS = {
 }
 
 REST_FRAMEWORK = {
+
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
+    ),
+
+    "DEFAULT_PERMISSION_CLASSES": (
+    "rest_framework.permissions.IsAuthenticated",
     ),
 
     "DEFAULT_SCHEMA_CLASS": (
@@ -252,3 +289,29 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
 }
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        minutes=15
+    ),
+
+    "REFRESH_TOKEN_LIFETIME": timedelta(
+        days=1
+    ),
+
+    "AUTH_HEADER_TYPES": (
+        "Bearer",
+    ),
+}
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    SECURE_SSL_REDIRECT = True
+
+    SECURE_HSTS_SECONDS = 3600
+
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+    X_FRAME_OPTIONS = "DENY"

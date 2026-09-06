@@ -45,6 +45,10 @@ from drf_spectacular.utils import (
     inline_serializer,
 )
 
+from .throttles import (
+    MarketRefreshThrottle,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -225,6 +229,9 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
         methods=["post"],
         url_path="refresh-quote",
         url_name="refresh-quote",
+        throttle_classes=[
+            MarketRefreshThrottle
+        ],
     )
     def refresh_quote(self, request, pk=None):
         asset = self.get_object()

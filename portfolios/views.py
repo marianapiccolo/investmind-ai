@@ -28,7 +28,8 @@ from .serializers import (
     TransactionSerializer,
     MarketQuoteSerializer,
     PortfolioMarketSummarySerializer,
-    PortfolioCompositionAnalyticsSerializer
+    PortfolioCompositionAnalyticsSerializer,
+    MarketPriceSerializer,
 )
 from .services import (
     get_portfolio_market_summary,
@@ -41,6 +42,11 @@ from .throttles import (
 
 from .analytics import (
     get_portfolio_composition_analytics,
+)
+
+from .tasks import (
+    refresh_market_quote_task,
+    sync_asset_market_history_task,
 )
 
 logger = logging.getLogger(__name__)
@@ -124,18 +130,18 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         serializer = PortfolioMarketSummarySerializer(summary_data)
 
         return Response(serializer.data)
-    
+
     @extend_schema(
-    summary="Get portfolio composition analytics",
-    description=(
-        "Returns portfolio composition analytics "
-        "including sector allocation, asset type "
-        "allocation, top holdings and concentration."
-    ),
-    responses={
-        200: PortfolioCompositionAnalyticsSerializer,
-    },
-)
+        summary="Get portfolio composition analytics",
+        description=(
+            "Returns portfolio composition analytics "
+            "including sector allocation, asset type "
+            "allocation, top holdings and concentration."
+        ),
+        responses={
+            200: PortfolioCompositionAnalyticsSerializer,
+        },
+    )
     @action(
         detail=True,
         methods=["get"],
@@ -150,27 +156,15 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         portfolio = self.get_object()
 
         try:
-            analytics_data = (
-                get_portfolio_composition_analytics(
-                    portfolio=portfolio
-                )
-            )
+            analytics_data = get_portfolio_composition_analytics(portfolio=portfolio)
 
         except DjangoValidationError as exc:
-            raise DRFValidationError(
-                exc.messages
-            ) from exc
+            raise DRFValidationError(exc.messages) from exc
 
         except MarketDataError as exc:
-            raise MarketDataUnavailable(
-                str(exc)
-            ) from exc
+            raise MarketDataUnavailable(str(exc)) from exc
 
-        serializer = (
-            PortfolioCompositionAnalyticsSerializer(
-                analytics_data
-            )
-        )
+        serializer = PortfolioCompositionAnalyticsSerializer(analytics_data)
 
         return Response(serializer.data)
 
@@ -256,6 +250,78 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
         asset = self.get_object()
 
         task = refresh_market_quote_task.delay(asset.ticker)
+
+        return Response(
+            {
+                "task_id": task.id,
+                "status": "queued",
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    @extend_schema(
+        summary="Get asset price history",
+        description=(
+            "Returns stored daily historical closing prices for the selected asset."
+        ),
+        responses={
+            200: MarketPriceSerializer(many=True),
+        },
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="history",
+        url_name="history",
+    )
+    def history(
+        self,
+        request,
+        pk=None,
+    ):
+        asset = self.get_object()
+
+        prices = asset.market_prices.all()
+
+        serializer = MarketPriceSerializer(
+            prices,
+            many=True,
+        )
+
+        return Response(serializer.data)
+
+    @extend_schema(
+        summary="Queue historical market data sync",
+        description=(
+            "Queues a Celery task that retrieves and "
+            "stores recent daily market history."
+        ),
+        request=None,
+        responses={
+            202: inline_serializer(
+                name="MarketHistorySyncQueuedResponse",
+                fields={
+                    "task_id": serializers.CharField(),
+                    "status": serializers.CharField(),
+                },
+            ),
+        },
+    )
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="sync-history",
+        url_name="sync-history",
+        throttle_classes=[MarketRefreshThrottle],
+    )
+    def sync_history(
+        self,
+        request,
+        pk=None,
+    ):
+        asset = self.get_object()
+
+        task = sync_asset_market_history_task.delay(asset.id)
 
         return Response(
             {

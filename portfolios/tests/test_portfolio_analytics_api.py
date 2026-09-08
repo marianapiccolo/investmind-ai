@@ -36,14 +36,9 @@ class PortfolioCompositionAnalyticsAPITests(APITestCase):
             currency="EUR",
         )
 
-        self.client.force_authenticate(
-            user=self.user
-        )
+        self.client.force_authenticate(user=self.user)
 
-    @patch(
-        "portfolios.views."
-        "get_portfolio_composition_analytics"
-    )
+    @patch("portfolios.views.get_portfolio_composition_analytics")
     def test_get_portfolio_analytics(
         self,
         mock_analytics,

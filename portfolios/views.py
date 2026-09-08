@@ -8,7 +8,8 @@ from .serializers import (
     PortfolioSummarySerializer,
     TransactionSerializer,
     MarketQuoteSerializer,
-    PortfolioMarketSummarySerializer
+    PortfolioMarketSummarySerializer,
+    PortfolioCompositionAnalyticsSerializer
 )
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -47,6 +48,10 @@ from drf_spectacular.utils import (
 
 from .throttles import (
     MarketRefreshThrottle,
+)
+
+from .analytics import (
+    get_portfolio_composition_analytics,
 )
 
 logger = logging.getLogger(__name__)
@@ -144,6 +149,55 @@ class PortfolioViewSet(viewsets.ModelViewSet):
 
         serializer = PortfolioMarketSummarySerializer(
             summary_data
+        )
+
+        return Response(serializer.data)
+    
+    @extend_schema(
+    summary="Get portfolio composition analytics",
+    description=(
+        "Returns portfolio composition analytics "
+        "including sector allocation, asset type "
+        "allocation, top holdings and concentration."
+    ),
+    responses={
+        200: PortfolioCompositionAnalyticsSerializer,
+    },
+)
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="analytics",
+        url_name="analytics",
+    )
+    def analytics(
+        self,
+        request,
+        pk=None,
+    ):
+        portfolio = self.get_object()
+
+        try:
+            analytics_data = (
+                get_portfolio_composition_analytics(
+                    portfolio=portfolio
+                )
+            )
+
+        except DjangoValidationError as exc:
+            raise DRFValidationError(
+                exc.messages
+            ) from exc
+
+        except MarketDataError as exc:
+            raise MarketDataUnavailable(
+                str(exc)
+            ) from exc
+
+        serializer = (
+            PortfolioCompositionAnalyticsSerializer(
+                analytics_data
+            )
         )
 
         return Response(serializer.data)

@@ -36,6 +36,86 @@ class PortfolioSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+class AllocationBreakdownSerializer(
+    serializers.Serializer
+):
+    label = serializers.CharField()
+
+    market_value = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    allocation_percentage = (
+        serializers.DecimalField(
+            max_digits=7,
+            decimal_places=2,
+        )
+    )
+
+
+class TopHoldingSerializer(
+    serializers.Serializer
+):
+    ticker = serializers.CharField()
+    asset_name = serializers.CharField()
+
+    market_value = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    allocation_percentage = (
+        serializers.DecimalField(
+            max_digits=7,
+            decimal_places=2,
+        )
+    )
+
+class PortfolioCompositionAnalyticsSerializer(
+    serializers.Serializer
+):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    currency = serializers.CharField()
+
+    positions_count = serializers.IntegerField()
+
+    total_market_value = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    largest_position_percentage = (
+        serializers.DecimalField(
+            max_digits=7,
+            decimal_places=2,
+        )
+    )
+
+    hhi_concentration_index = (
+        serializers.DecimalField(
+            max_digits=6,
+            decimal_places=4,
+        )
+    )
+
+    top_holdings = TopHoldingSerializer(
+        many=True
+    )
+
+    sector_allocation = (
+        AllocationBreakdownSerializer(
+            many=True
+        )
+    )
+
+    asset_type_allocation = (
+        AllocationBreakdownSerializer(
+            many=True
+        )
+    )
+
 class TransactionSerializer(serializers.ModelSerializer):
     portfolio = serializers.PrimaryKeyRelatedField(
         queryset=Portfolio.objects.all()
@@ -128,6 +208,8 @@ class PositionSummarySerializer(serializers.Serializer):
     asset_id = serializers.IntegerField()
     ticker = serializers.CharField()
     asset_name = serializers.CharField()
+    asset_type = serializers.CharField()
+    sector = serializers.CharField()
 
     quantity = serializers.DecimalField(
         max_digits=18,
@@ -187,6 +269,8 @@ class MarketPositionSummarySerializer(
     asset_id = serializers.IntegerField()
     ticker = serializers.CharField()
     asset_name = serializers.CharField()
+    asset_type = serializers.CharField()
+    sector = serializers.CharField()
 
     quantity = serializers.DecimalField(
         max_digits=18,

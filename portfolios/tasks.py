@@ -5,6 +5,10 @@ from celery import shared_task
 from .market_data import refresh_market_quote
 from .models import Asset
 
+from .historical_market_data import (
+    sync_asset_market_history,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,3 +51,23 @@ def schedule_active_market_quote_refreshes():
         scheduled_count,
     )
     return scheduled_count
+
+
+@shared_task
+def sync_asset_market_history_task(asset_id):
+    asset = Asset.objects.get(id=asset_id)
+
+    logger.info(
+        "Synchronizing historical market data for symbol=%s",
+        asset.ticker,
+    )
+
+    result = sync_asset_market_history(asset=asset)
+
+    logger.info(
+        "Historical market data synchronized for symbol=%s total=%s",
+        asset.ticker,
+        result["total"],
+    )
+
+    return result["total"]

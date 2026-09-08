@@ -13,9 +13,8 @@ from portfolios.models import (
     Position,
 )
 
-class PortfolioCompositionAnalyticsTests(
-    TestCase
-):
+
+class PortfolioCompositionAnalyticsTests(TestCase):
     def setUp(self):
         User = get_user_model()
 
@@ -75,10 +74,7 @@ class PortfolioCompositionAnalyticsTests(
             average_price=Decimal("50"),
         )
 
-    @patch(
-        "portfolios.services."
-        "get_cached_market_quote"
-    )
+    @patch("portfolios.services.get_cached_market_quote")
     def test_portfolio_composition_analytics(
         self,
         mock_quote,
@@ -93,73 +89,50 @@ class PortfolioCompositionAnalyticsTests(
             return {
                 "symbol": symbol,
                 "price": quotes[symbol],
-                "latest_trading_day": (
-                    "2026-09-06"
-                ),
+                "latest_trading_day": ("2026-09-06"),
                 "provider": "alpha_vantage",
             }
 
-        mock_quote.side_effect = (
-            quote_for_symbol
-        )
+        mock_quote.side_effect = quote_for_symbol
 
-        analytics = (
-            get_portfolio_composition_analytics(
-                portfolio=self.portfolio
-            )
+        analytics = get_portfolio_composition_analytics(portfolio=self.portfolio)
+
+        self.assertEqual(
+            analytics["total_market_value"],
+            Decimal("2000.0000"),
         )
 
         self.assertEqual(
-             analytics["total_market_value"],
-             Decimal("2000.0000"),
-        )
-
-        self.assertEqual(
-            analytics[
-                "largest_position_percentage"
-            ],
+            analytics["largest_position_percentage"],
             Decimal("65.00"),
         )
 
         self.assertEqual(
-            analytics[
-                "hhi_concentration_index"
-            ],
+            analytics["hhi_concentration_index"],
             Decimal("0.4950"),
         )
 
         self.assertEqual(
-            analytics[
-                "sector_allocation"
-            ][0]["label"],
+            analytics["sector_allocation"][0]["label"],
             "Technology",
         )
 
         self.assertEqual(
-            analytics[
-                "sector_allocation"
-            ][0]["allocation_percentage"],
+            analytics["sector_allocation"][0]["allocation_percentage"],
             Decimal("75.00"),
         )
 
         self.assertEqual(
-            analytics[
-                "asset_type_allocation"
-            ][0]["label"],
+            analytics["asset_type_allocation"][0]["label"],
             "Stock",
         )
 
         self.assertEqual(
-            analytics[
-                "asset_type_allocation"
-            ][0]["allocation_percentage"],
+            analytics["asset_type_allocation"][0]["allocation_percentage"],
             Decimal("90.00"),
         )
 
-    @patch(
-        "portfolios.services."
-        "get_cached_market_quote"
-    )
+    @patch("portfolios.services.get_cached_market_quote")
     def test_empty_portfolio_analytics(
         self,
         mock_quote,
@@ -170,11 +143,7 @@ class PortfolioCompositionAnalyticsTests(
             currency="EUR",
         )
 
-        analytics = (
-            get_portfolio_composition_analytics(
-                portfolio=empty_portfolio
-            )
-        )
+        analytics = get_portfolio_composition_analytics(portfolio=empty_portfolio)
 
         self.assertEqual(
             analytics["total_market_value"],
@@ -182,9 +151,7 @@ class PortfolioCompositionAnalyticsTests(
         )
 
         self.assertEqual(
-            analytics[
-                "hhi_concentration_index"
-            ],
+            analytics["hhi_concentration_index"],
             Decimal("0.0000"),
         )
 

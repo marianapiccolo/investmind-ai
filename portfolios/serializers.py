@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .models import Asset, Portfolio, Position, Transaction
+from .models import Asset, Portfolio, Position, Transaction, MarketPrice
 from .services import create_transaction
 
 
@@ -29,9 +29,8 @@ class PortfolioSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
-class AllocationBreakdownSerializer(
-    serializers.Serializer
-):
+
+class AllocationBreakdownSerializer(serializers.Serializer):
     label = serializers.CharField()
 
     market_value = serializers.DecimalField(
@@ -39,17 +38,13 @@ class AllocationBreakdownSerializer(
         decimal_places=4,
     )
 
-    allocation_percentage = (
-        serializers.DecimalField(
-            max_digits=7,
-            decimal_places=2,
-        )
+    allocation_percentage = serializers.DecimalField(
+        max_digits=7,
+        decimal_places=2,
     )
 
 
-class TopHoldingSerializer(
-    serializers.Serializer
-):
+class TopHoldingSerializer(serializers.Serializer):
     ticker = serializers.CharField()
     asset_name = serializers.CharField()
 
@@ -58,16 +53,13 @@ class TopHoldingSerializer(
         decimal_places=4,
     )
 
-    allocation_percentage = (
-        serializers.DecimalField(
-            max_digits=7,
-            decimal_places=2,
-        )
+    allocation_percentage = serializers.DecimalField(
+        max_digits=7,
+        decimal_places=2,
     )
 
-class PortfolioCompositionAnalyticsSerializer(
-    serializers.Serializer
-):
+
+class PortfolioCompositionAnalyticsSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
     currency = serializers.CharField()
@@ -79,35 +71,22 @@ class PortfolioCompositionAnalyticsSerializer(
         decimal_places=4,
     )
 
-    largest_position_percentage = (
-        serializers.DecimalField(
-            max_digits=7,
-            decimal_places=2,
-        )
+    largest_position_percentage = serializers.DecimalField(
+        max_digits=7,
+        decimal_places=2,
     )
 
-    hhi_concentration_index = (
-        serializers.DecimalField(
-            max_digits=6,
-            decimal_places=4,
-        )
+    hhi_concentration_index = serializers.DecimalField(
+        max_digits=6,
+        decimal_places=4,
     )
 
-    top_holdings = TopHoldingSerializer(
-        many=True
-    )
+    top_holdings = TopHoldingSerializer(many=True)
 
-    sector_allocation = (
-        AllocationBreakdownSerializer(
-            many=True
-        )
-    )
+    sector_allocation = AllocationBreakdownSerializer(many=True)
 
-    asset_type_allocation = (
-        AllocationBreakdownSerializer(
-            many=True
-        )
-    )
+    asset_type_allocation = AllocationBreakdownSerializer(many=True)
+
 
 class TransactionSerializer(serializers.ModelSerializer):
     portfolio = serializers.PrimaryKeyRelatedField(queryset=Portfolio.objects.all())
@@ -336,3 +315,16 @@ class PortfolioMarketSummarySerializer(serializers.Serializer):
     positions_count = serializers.IntegerField()
 
     positions = MarketPositionSummarySerializer(many=True)
+
+
+class MarketPriceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MarketPrice
+
+        fields = [
+            "date",
+            "close",
+            "provider",
+        ]
+
+        read_only_fields = fields

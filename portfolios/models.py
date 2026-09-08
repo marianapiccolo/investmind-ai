@@ -119,3 +119,40 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.transaction_type} {self.quantity} {self.asset.ticker}"
+
+
+class MarketPrice(models.Model):
+    asset = models.ForeignKey(
+        Asset,
+        on_delete=models.CASCADE,
+        related_name="market_prices",
+    )
+
+    date = models.DateField()
+
+    close = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+
+    provider = models.CharField(
+        max_length=50,
+        default="alpha_vantage",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["asset", "date"],
+                name="unique_market_price_per_asset_date",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.asset.ticker} {self.date} {self.close}"

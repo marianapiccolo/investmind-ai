@@ -51,9 +51,7 @@ class PortfolioMarketSummaryTests(TestCase):
             average_price=Decimal("120"),
         )
 
-    @patch(
-        "portfolios.services.get_cached_market_quote"
-    )
+    @patch("portfolios.services.get_cached_market_quote")
     def test_market_summary_calculations(
         self,
         mock_get_market_quote,
@@ -76,13 +74,9 @@ class PortfolioMarketSummaryTests(TestCase):
 
             return quotes[symbol]
 
-        mock_get_market_quote.side_effect = (
-            quote_for_symbol
-        )
+        mock_get_market_quote.side_effect = quote_for_symbol
 
-        summary = get_portfolio_market_summary(
-            portfolio=self.portfolio
-        )
+        summary = get_portfolio_market_summary(portfolio=self.portfolio)
 
         self.assertEqual(
             summary["total_invested"],
@@ -147,9 +141,7 @@ class PortfolioMarketSummaryTests(TestCase):
             Decimal("27.78"),
         )
 
-    @patch(
-        "portfolios.services.get_cached_market_quote"
-    )
+    @patch("portfolios.services.get_cached_market_quote")
     def test_empty_portfolio_market_summary(
         self,
         mock_get_market_quote,
@@ -160,9 +152,7 @@ class PortfolioMarketSummaryTests(TestCase):
             currency="EUR",
         )
 
-        summary = get_portfolio_market_summary(
-            portfolio=empty_portfolio
-        )
+        summary = get_portfolio_market_summary(portfolio=empty_portfolio)
 
         self.assertEqual(
             summary["total_market_value"],

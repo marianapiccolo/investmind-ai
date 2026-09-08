@@ -52,9 +52,7 @@ class PortfolioSummaryTests(TestCase):
             average_price=Decimal("120"),
         )
 
-        summary = get_portfolio_summary(
-            portfolio=self.portfolio
-        )
+        summary = get_portfolio_summary(portfolio=self.portfolio)
 
         self.assertEqual(
             summary["total_invested"],
@@ -77,9 +75,7 @@ class PortfolioSummaryTests(TestCase):
         )
 
     def test_empty_portfolio_returns_zero_summary(self):
-        summary = get_portfolio_summary(
-            portfolio=self.portfolio
-        )
+        summary = get_portfolio_summary(portfolio=self.portfolio)
 
         self.assertEqual(
             summary["total_invested"],
@@ -112,6 +108,4 @@ class PortfolioSummaryTests(TestCase):
         )
 
         with self.assertRaises(ValidationError):
-            get_portfolio_summary(
-                portfolio=self.portfolio
-            )
+            get_portfolio_summary(portfolio=self.portfolio)

@@ -4,23 +4,16 @@ from rest_framework import serializers
 from .models import Asset, Portfolio, Position, Transaction
 from .services import create_transaction
 
+
 class PortfolioSerializer(serializers.ModelSerializer):
-
     def validate_currency(self, value):
-        normalized_currency = (
-            value.strip().upper()
-        )
+        normalized_currency = value.strip().upper()
 
-        if (
-            len(normalized_currency) != 3
-            or not normalized_currency.isalpha()
-        ):
-            raise serializers.ValidationError(
-                "Currency must be a three-letter code."
-            )
+        if len(normalized_currency) != 3 or not normalized_currency.isalpha():
+            raise serializers.ValidationError("Currency must be a three-letter code.")
 
         return normalized_currency
-    
+
     class Meta:
         model = Portfolio
         fields = [
@@ -117,13 +110,9 @@ class PortfolioCompositionAnalyticsSerializer(
     )
 
 class TransactionSerializer(serializers.ModelSerializer):
-    portfolio = serializers.PrimaryKeyRelatedField(
-        queryset=Portfolio.objects.all()
-    )
+    portfolio = serializers.PrimaryKeyRelatedField(queryset=Portfolio.objects.all())
 
-    asset = serializers.PrimaryKeyRelatedField(
-        queryset=Asset.objects.all()
-    )
+    asset = serializers.PrimaryKeyRelatedField(queryset=Asset.objects.all())
 
     class Meta:
         model = Transaction
@@ -156,10 +145,9 @@ class TransactionSerializer(serializers.ModelSerializer):
         try:
             return create_transaction(**validated_data)
         except DjangoValidationError as exc:
-            raise serializers.ValidationError(
-                exc.messages
-            ) from exc
-        
+            raise serializers.ValidationError(exc.messages) from exc
+
+
 class AssetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Asset
@@ -173,6 +161,7 @@ class AssetSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = fields
+
 
 class PositionSerializer(serializers.ModelSerializer):
     portfolio_name = serializers.CharField(
@@ -203,6 +192,7 @@ class PositionSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
 
 class PositionSummarySerializer(serializers.Serializer):
     asset_id = serializers.IntegerField()
@@ -244,9 +234,8 @@ class PortfolioSummarySerializer(serializers.Serializer):
 
     positions_count = serializers.IntegerField()
 
-    positions = PositionSummarySerializer(
-        many=True
-    )
+    positions = PositionSummarySerializer(many=True)
+
 
 class MarketQuoteSerializer(serializers.Serializer):
     symbol = serializers.CharField()
@@ -263,9 +252,8 @@ class MarketQuoteSerializer(serializers.Serializer):
 
     provider = serializers.CharField()
 
-class MarketPositionSummarySerializer(
-    serializers.Serializer
-):
+
+class MarketPositionSummarySerializer(serializers.Serializer):
     asset_id = serializers.IntegerField()
     ticker = serializers.CharField()
     asset_name = serializers.CharField()
@@ -319,9 +307,8 @@ class MarketPositionSummarySerializer(
 
     provider = serializers.CharField()
 
-class PortfolioMarketSummarySerializer(
-    serializers.Serializer
-):
+
+class PortfolioMarketSummarySerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
     currency = serializers.CharField()
@@ -336,11 +323,9 @@ class PortfolioMarketSummarySerializer(
         decimal_places=4,
     )
 
-    total_unrealized_profit_loss = (
-        serializers.DecimalField(
-            max_digits=28,
-            decimal_places=4,
-        )
+    total_unrealized_profit_loss = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
     )
 
     total_return_percentage = serializers.DecimalField(
@@ -350,6 +335,4 @@ class PortfolioMarketSummarySerializer(
 
     positions_count = serializers.IntegerField()
 
-    positions = MarketPositionSummarySerializer(
-        many=True
-    )
+    positions = MarketPositionSummarySerializer(many=True)

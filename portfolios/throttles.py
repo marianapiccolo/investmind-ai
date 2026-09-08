@@ -3,7 +3,5 @@ from rest_framework.throttling import (
 )
 
 
-class MarketRefreshThrottle(
-    UserRateThrottle
-):
+class MarketRefreshThrottle(UserRateThrottle):
     rate = "10/hour"

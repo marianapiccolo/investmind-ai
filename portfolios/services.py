@@ -181,17 +181,23 @@ def get_portfolio_summary(*, portfolio):
             )
 
         positions_summary.append(
-            {
-                "asset_id": position.asset.id,
-                "ticker": position.asset.ticker,
-                "asset_name": position.asset.name,
-                "quantity": position.quantity,
-                "average_price": position.average_price,
-                "invested_amount": invested_amount,
-                "allocation_percentage": allocation_percentage,
-            }
-        )
-
+        {
+            "asset_id": position.asset.id,
+            "ticker": position.asset.ticker,
+            "asset_name": position.asset.name,
+            "asset_type": (
+                position.asset.get_asset_type_display()
+            ),
+            "sector": (
+                position.asset.sector
+                or "Unclassified"
+            ),
+            "quantity": position.quantity,
+            "average_price": position.average_price,
+            "invested_amount": invested_amount,
+            "allocation_percentage": allocation_percentage,
+        }
+    )
     return {
         "id": portfolio.id,
         "name": portfolio.name,

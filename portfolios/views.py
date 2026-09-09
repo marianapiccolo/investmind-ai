@@ -31,6 +31,7 @@ from .serializers import (
     PortfolioCompositionAnalyticsSerializer,
     MarketPriceSerializer,
     AssetHistoricalAnalyticsSerializer,
+    AssetBenchmarkComparisonSerializer,
 )
 from .services import (
     get_portfolio_market_summary,
@@ -52,6 +53,10 @@ from .tasks import (
 
 from .historical_analytics import (
     get_asset_historical_analytics,
+)
+
+from .benchmark_analytics import (
+    get_asset_benchmark_comparison,
 )
 
 logger = logging.getLogger(__name__)
@@ -374,6 +379,109 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = (
             AssetHistoricalAnalyticsSerializer(
                 analytics_data
+            )
+        )
+
+        return Response(
+            serializer.data
+        )
+    
+    @extend_schema(
+    summary="Compare asset with benchmark",
+    description=(
+        "Compares historical performance of "
+        "an asset against another asset used as "
+        "a benchmark. Both series are aligned "
+        "by common dates and normalized to 100."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="benchmark",
+            type=int,
+            location=OpenApiParameter.QUERY,
+            required=True,
+            description=(
+                "Asset ID used as benchmark."
+            ),
+        ),
+    ],
+    responses={
+        200: AssetBenchmarkComparisonSerializer,
+    },
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="benchmark-comparison",
+        url_name="benchmark-comparison",
+    )
+    def benchmark_comparison(
+        self,
+        request,
+        pk=None,
+    ):
+        asset = self.get_object()
+
+        benchmark_id = (
+            request.query_params.get(
+                "benchmark"
+            )
+        )
+
+        if not benchmark_id:
+            raise DRFValidationError(
+                {
+                    "benchmark": (
+                        "This query parameter "
+                        "is required."
+                    )
+                }
+            )
+
+        try:
+            benchmark_id = int(
+                benchmark_id
+            )
+        except ValueError as exc:
+            raise DRFValidationError(
+                {
+                    "benchmark": (
+                        "Benchmark must be "
+                        "a valid asset ID."
+                    )
+                }
+            ) from exc
+
+        try:
+            benchmark = Asset.objects.get(
+                id=benchmark_id
+            )
+        except Asset.DoesNotExist as exc:
+            raise DRFValidationError(
+                {
+                    "benchmark": (
+                        "Benchmark asset "
+                        "was not found."
+                    )
+                }
+            ) from exc
+
+        try:
+            comparison_data = (
+                get_asset_benchmark_comparison(
+                    asset=asset,
+                    benchmark=benchmark,
+                )
+            )
+
+        except DjangoValidationError as exc:
+            raise DRFValidationError(
+                exc.messages
+            ) from exc
+
+        serializer = (
+            AssetBenchmarkComparisonSerializer(
+                comparison_data
             )
         )
 

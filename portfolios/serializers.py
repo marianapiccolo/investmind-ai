@@ -414,3 +414,97 @@ class AssetHistoricalAnalyticsSerializer(
             many=True
         )
     )
+
+class BenchmarkSeriesPointSerializer(
+    serializers.Serializer
+):
+    date = serializers.DateField()
+
+    asset_normalized = (
+        serializers.DecimalField(
+            max_digits=20,
+            decimal_places=4,
+        )
+    )
+
+    benchmark_normalized = (
+        serializers.DecimalField(
+            max_digits=20,
+            decimal_places=4,
+        )
+    )
+
+    asset_daily_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+            allow_null=True,
+        )
+    )
+
+    benchmark_daily_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+            allow_null=True,
+        )
+    )
+
+
+class AssetBenchmarkComparisonSerializer(
+    serializers.Serializer
+):
+    asset_id = serializers.IntegerField()
+
+    ticker = serializers.CharField()
+
+    benchmark_id = serializers.IntegerField()
+
+    benchmark_ticker = serializers.CharField()
+
+    currency = serializers.CharField()
+
+    start_date = serializers.DateField()
+
+    end_date = serializers.DateField()
+
+    observations = serializers.IntegerField()
+
+    asset_period_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+    benchmark_period_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+    excess_return_percentage_points = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+    return_correlation = (
+        serializers.DecimalField(
+            max_digits=10,
+            decimal_places=4,
+            allow_null=True,
+        )
+    )
+
+    beta = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        allow_null=True,
+    )
+
+    series = BenchmarkSeriesPointSerializer(
+        many=True
+    )

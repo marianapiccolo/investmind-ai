@@ -328,3 +328,89 @@ class MarketPriceSerializer(serializers.ModelSerializer):
         ]
 
         read_only_fields = fields
+
+class HistoricalPriceAnalyticsSerializer(
+    serializers.Serializer
+):
+    date = serializers.DateField()
+
+    close = serializers.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+
+    daily_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+            allow_null=True,
+        )
+    )
+
+    cumulative_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+    drawdown_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+
+class AssetHistoricalAnalyticsSerializer(
+    serializers.Serializer
+):
+    asset_id = serializers.IntegerField()
+
+    ticker = serializers.CharField()
+
+    currency = serializers.CharField()
+
+    start_date = serializers.DateField()
+
+    end_date = serializers.DateField()
+
+    observations = serializers.IntegerField()
+
+    start_price = serializers.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+
+    end_price = serializers.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+    )
+
+    period_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+    annualized_volatility_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+            allow_null=True,
+        )
+    )
+
+    maximum_drawdown_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+    series = (
+        HistoricalPriceAnalyticsSerializer(
+            many=True
+        )
+    )

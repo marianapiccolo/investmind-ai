@@ -30,6 +30,7 @@ from .serializers import (
     PortfolioMarketSummarySerializer,
     PortfolioCompositionAnalyticsSerializer,
     MarketPriceSerializer,
+    AssetHistoricalAnalyticsSerializer,
 )
 from .services import (
     get_portfolio_market_summary,
@@ -47,6 +48,10 @@ from .analytics import (
 from .tasks import (
     refresh_market_quote_task,
     sync_asset_market_history_task,
+)
+
+from .historical_analytics import (
+    get_asset_historical_analytics,
 )
 
 logger = logging.getLogger(__name__)
@@ -329,6 +334,51 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
                 "status": "queued",
             },
             status=status.HTTP_202_ACCEPTED,
+        )
+    @extend_schema(
+    summary="Get asset historical analytics",
+    description=(
+        "Returns historical return, volatility, "
+        "maximum drawdown and daily performance "
+        "metrics using stored market prices."
+    ),
+    responses={
+        200: AssetHistoricalAnalyticsSerializer,
+    },
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="historical-analytics",
+        url_name="historical-analytics",
+    )
+    def historical_analytics(
+        self,
+        request,
+        pk=None,
+    ):
+        asset = self.get_object()
+
+        try:
+            analytics_data = (
+                get_asset_historical_analytics(
+                    asset=asset
+                )
+            )
+
+        except DjangoValidationError as exc:
+            raise DRFValidationError(
+                exc.messages
+            ) from exc
+
+        serializer = (
+            AssetHistoricalAnalyticsSerializer(
+                analytics_data
+            )
+        )
+
+        return Response(
+            serializer.data
         )
 
 

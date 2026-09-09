@@ -32,6 +32,7 @@ from .serializers import (
     MarketPriceSerializer,
     AssetHistoricalAnalyticsSerializer,
     AssetBenchmarkComparisonSerializer,
+    PortfolioPerformanceSerializer,
 )
 from .services import (
     get_portfolio_market_summary,
@@ -58,6 +59,11 @@ from .historical_analytics import (
 from .benchmark_analytics import (
     get_asset_benchmark_comparison,
 )
+
+from .portfolio_performance import (
+    get_portfolio_performance,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +183,54 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         serializer = PortfolioCompositionAnalyticsSerializer(analytics_data)
 
         return Response(serializer.data)
+    
+    @extend_schema(
+    summary="Get portfolio historical performance",
+    description=(
+        "Returns transaction-adjusted historical "
+        "portfolio performance using Time-Weighted "
+        "Return. BUY transactions are treated as "
+        "external contributions and SELL transactions "
+        "as external withdrawals in the current model."
+    ),
+    responses={
+        200: PortfolioPerformanceSerializer,
+    },
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="performance",
+        url_name="performance",
+    )
+    def performance(
+        self,
+        request,
+        pk=None,
+    ):
+        portfolio = self.get_object()
 
+        try:
+            performance_data = (
+                get_portfolio_performance(
+                    portfolio=portfolio
+                )
+            )
+
+        except DjangoValidationError as exc:
+            raise DRFValidationError(
+                exc.messages
+            ) from exc
+
+        serializer = (
+            PortfolioPerformanceSerializer(
+                performance_data
+            )
+        )
+
+        return Response(
+            serializer.data
+        )
 
 class TransactionViewSet(
     mixins.ListModelMixin,

@@ -7,9 +7,11 @@ from rest_framework.test import APITestCase
 
 from portfolios.models import Asset
 
+from django.core.cache import cache
 
 class BackgroundMarketDataAPITests(APITestCase):
     def setUp(self):
+        cache.clear()
         User = get_user_model()
 
         self.user = User.objects.create_user(

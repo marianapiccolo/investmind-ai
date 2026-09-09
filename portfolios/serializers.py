@@ -508,3 +508,74 @@ class AssetBenchmarkComparisonSerializer(
     series = BenchmarkSeriesPointSerializer(
         many=True
     )
+
+class PortfolioPerformancePointSerializer(
+    serializers.Serializer
+):
+    date = serializers.DateField()
+
+    portfolio_value = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    net_cash_flow = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    daily_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+            allow_null=True,
+        )
+    )
+
+    cumulative_twr_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+
+class PortfolioPerformanceSerializer(
+    serializers.Serializer
+):
+    portfolio_id = serializers.IntegerField()
+
+    name = serializers.CharField()
+
+    currency = serializers.CharField()
+
+    start_date = serializers.DateField()
+
+    end_date = serializers.DateField()
+
+    observations = serializers.IntegerField()
+
+    ending_value = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    net_external_cash_flow = (
+        serializers.DecimalField(
+            max_digits=28,
+            decimal_places=4,
+        )
+    )
+
+    time_weighted_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+    series = (
+        PortfolioPerformancePointSerializer(
+            many=True
+        )
+    )

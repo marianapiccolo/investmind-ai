@@ -33,6 +33,7 @@ from .serializers import (
     AssetHistoricalAnalyticsSerializer,
     AssetBenchmarkComparisonSerializer,
     PortfolioPerformanceSerializer,
+    PortfolioMoneyWeightedPerformanceSerializer,
 )
 from .services import (
     get_portfolio_market_summary,
@@ -64,6 +65,9 @@ from .portfolio_performance import (
     get_portfolio_performance,
 )
 
+from .money_weighted_performance import (
+    get_portfolio_money_weighted_performance,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -224,6 +228,57 @@ class PortfolioViewSet(viewsets.ModelViewSet):
 
         serializer = (
             PortfolioPerformanceSerializer(
+                performance_data
+            )
+        )
+
+        return Response(
+            serializer.data
+        )
+    
+    @extend_schema(
+    summary="Get portfolio money-weighted performance",
+    description=(
+        "Returns the annualized Money-Weighted "
+        "Return (XIRR) using dated portfolio cash "
+        "flows. BUY transactions are investor "
+        "outflows, SELL transactions are inflows, "
+        "and the ending portfolio value is included "
+        "as the terminal value."
+    ),
+    responses={
+        200: (
+            PortfolioMoneyWeightedPerformanceSerializer
+        ),
+    },
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="money-weighted-performance",
+        url_name="money-weighted-performance",
+    )
+    def money_weighted_performance(
+        self,
+        request,
+        pk=None,
+    ):
+        portfolio = self.get_object()
+
+        try:
+            performance_data = (
+                get_portfolio_money_weighted_performance(
+                    portfolio=portfolio
+                )
+            )
+
+        except DjangoValidationError as exc:
+            raise DRFValidationError(
+                exc.messages
+            ) from exc
+
+        serializer = (
+            PortfolioMoneyWeightedPerformanceSerializer(
                 performance_data
             )
         )

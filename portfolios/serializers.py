@@ -579,3 +579,47 @@ class PortfolioPerformanceSerializer(
             many=True
         )
     )
+
+class MoneyWeightedCashFlowSerializer(
+    serializers.Serializer
+):
+    date = serializers.DateField()
+
+    type = serializers.CharField()
+
+    amount = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+
+class PortfolioMoneyWeightedPerformanceSerializer(
+    serializers.Serializer
+):
+    portfolio_id = serializers.IntegerField()
+
+    name = serializers.CharField()
+
+    currency = serializers.CharField()
+
+    start_date = serializers.DateField()
+
+    end_date = serializers.DateField()
+
+    ending_value = serializers.DecimalField(
+        max_digits=28,
+        decimal_places=4,
+    )
+
+    money_weighted_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+    cash_flows = (
+        MoneyWeightedCashFlowSerializer(
+            many=True
+        )
+    )

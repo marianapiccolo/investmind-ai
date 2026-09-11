@@ -623,3 +623,69 @@ class PortfolioMoneyWeightedPerformanceSerializer(
             many=True
         )
     )
+
+class AssetPerformanceContributionSerializer(
+    serializers.Serializer
+):
+    asset_id = serializers.IntegerField()
+
+    ticker = serializers.CharField()
+
+    asset_name = serializers.CharField()
+
+    sector = serializers.CharField()
+
+    contribution_percentage_points = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+
+class SectorPerformanceContributionSerializer(
+    serializers.Serializer
+):
+    sector = serializers.CharField()
+
+    contribution_percentage_points = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+
+class PortfolioPerformanceAttributionSerializer(
+    serializers.Serializer
+):
+    portfolio_id = serializers.IntegerField()
+
+    name = serializers.CharField()
+
+    currency = serializers.CharField()
+
+    start_date = serializers.DateField()
+
+    end_date = serializers.DateField()
+
+    observations = serializers.IntegerField()
+
+    time_weighted_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+    asset_contributions = (
+        AssetPerformanceContributionSerializer(
+            many=True
+        )
+    )
+
+    sector_contributions = (
+        SectorPerformanceContributionSerializer(
+            many=True
+        )
+    )

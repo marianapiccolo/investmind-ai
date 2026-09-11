@@ -34,6 +34,7 @@ from .serializers import (
     AssetBenchmarkComparisonSerializer,
     PortfolioPerformanceSerializer,
     PortfolioMoneyWeightedPerformanceSerializer,
+    PortfolioPerformanceAttributionSerializer,
 )
 from .services import (
     get_portfolio_market_summary,
@@ -67,6 +68,10 @@ from .portfolio_performance import (
 
 from .money_weighted_performance import (
     get_portfolio_money_weighted_performance,
+)
+
+from .performance_attribution import (
+    get_portfolio_performance_attribution,
 )
 
 logger = logging.getLogger(__name__)
@@ -280,6 +285,54 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         serializer = (
             PortfolioMoneyWeightedPerformanceSerializer(
                 performance_data
+            )
+        )
+
+        return Response(
+            serializer.data
+        )
+    
+    @extend_schema(
+    summary="Get portfolio performance attribution",
+    description=(
+        "Returns the contribution of each asset "
+        "and sector to the portfolio's "
+        "time-weighted return."
+    ),
+    responses={
+        200: (
+            PortfolioPerformanceAttributionSerializer
+        ),
+    },
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="performance-attribution",
+        url_name="performance-attribution",
+    )
+    def performance_attribution(
+        self,
+        request,
+        pk=None,
+    ):
+        portfolio = self.get_object()
+
+        try:
+            attribution_data = (
+                get_portfolio_performance_attribution(
+                    portfolio=portfolio
+                )
+            )
+
+        except DjangoValidationError as exc:
+            raise DRFValidationError(
+                exc.messages
+            ) from exc
+
+        serializer = (
+            PortfolioPerformanceAttributionSerializer(
+                attribution_data
             )
         )
 

@@ -35,6 +35,7 @@ from .serializers import (
     PortfolioPerformanceSerializer,
     PortfolioMoneyWeightedPerformanceSerializer,
     PortfolioPerformanceAttributionSerializer,
+    PortfolioRiskAnalyticsSerializer,
 )
 from .services import (
     get_portfolio_market_summary,
@@ -72,6 +73,10 @@ from .money_weighted_performance import (
 
 from .performance_attribution import (
     get_portfolio_performance_attribution,
+)
+
+from .portfolio_risk import (
+    get_portfolio_risk_analytics,
 )
 
 logger = logging.getLogger(__name__)
@@ -333,6 +338,53 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         serializer = (
             PortfolioPerformanceAttributionSerializer(
                 attribution_data
+            )
+        )
+
+        return Response(
+            serializer.data
+        )
+    
+    @extend_schema(
+    summary="Get portfolio risk analytics",
+    description=(
+        "Returns portfolio risk metrics based on "
+        "transaction-adjusted historical returns, "
+        "including annualized volatility, downside "
+        "deviation and maximum drawdown."
+    ),
+    responses={
+        200: PortfolioRiskAnalyticsSerializer,
+    },
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="risk-analytics",
+        url_name="risk-analytics",
+    )
+    def risk_analytics(
+        self,
+        request,
+        pk=None,
+    ):
+        portfolio = self.get_object()
+
+        try:
+            risk_data = (
+                get_portfolio_risk_analytics(
+                    portfolio=portfolio
+                )
+            )
+
+        except DjangoValidationError as exc:
+            raise DRFValidationError(
+                exc.messages
+            ) from exc
+
+        serializer = (
+            PortfolioRiskAnalyticsSerializer(
+                risk_data
             )
         )
 

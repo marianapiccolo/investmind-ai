@@ -38,6 +38,7 @@ from .serializers import (
     PortfolioRiskAnalyticsSerializer,
     PortfolioRiskAdjustedPerformanceSerializer,
     RiskAdjustedPerformanceQuerySerializer,
+    PortfolioDiversificationAnalyticsSerializer,
 )
 
 from .services import (
@@ -84,6 +85,10 @@ from .portfolio_risk import (
 
 from .risk_adjusted_performance import (
     get_portfolio_risk_adjusted_performance,
+)
+
+from .portfolio_diversification import (
+    get_portfolio_diversification_analytics,
 )
 
 logger = logging.getLogger(__name__)
@@ -473,6 +478,56 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         serializer = (
             PortfolioRiskAdjustedPerformanceSerializer(
                 performance_data
+            )
+        )
+
+        return Response(
+            serializer.data
+        )
+    
+    @extend_schema(
+    summary="Get portfolio diversification analytics",
+    description=(
+        "Returns pairwise historical return "
+        "correlations for the portfolio's current "
+        "assets, including average correlation, "
+        "most and least correlated pairs, and a "
+        "correlation matrix."
+    ),
+    responses={
+        200: (
+            PortfolioDiversificationAnalyticsSerializer
+        ),
+    },
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="diversification-analytics",
+        url_name="diversification-analytics",
+    )
+    def diversification_analytics(
+        self,
+        request,
+        pk=None,
+    ):
+        portfolio = self.get_object()
+
+        try:
+            diversification_data = (
+                get_portfolio_diversification_analytics(
+                    portfolio=portfolio
+                )
+            )
+
+        except DjangoValidationError as exc:
+            raise DRFValidationError(
+                exc.messages
+            ) from exc
+
+        serializer = (
+            PortfolioDiversificationAnalyticsSerializer(
+                diversification_data
             )
         )
 

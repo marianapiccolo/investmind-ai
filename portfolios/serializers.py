@@ -689,3 +689,79 @@ class PortfolioPerformanceAttributionSerializer(
             many=True
         )
     )
+
+class PortfolioRiskPeriodSerializer(
+    serializers.Serializer
+):
+    date = serializers.DateField()
+
+    return_percentage = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+
+class PortfolioRiskAnalyticsSerializer(
+    serializers.Serializer
+):
+    portfolio_id = serializers.IntegerField()
+
+    name = serializers.CharField()
+
+    currency = serializers.CharField()
+
+    start_date = serializers.DateField()
+
+    end_date = serializers.DateField()
+
+    observations = serializers.IntegerField()
+
+    return_observations = (
+        serializers.IntegerField()
+    )
+
+    time_weighted_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+    annualized_volatility_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+            allow_null=True,
+        )
+    )
+
+    annualized_downside_deviation_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+            allow_null=True,
+        )
+    )
+
+    maximum_drawdown_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+    best_period = (
+        PortfolioRiskPeriodSerializer()
+    )
+
+    worst_period = (
+        PortfolioRiskPeriodSerializer()
+    )
+
+    positive_periods = (
+        serializers.IntegerField()
+    )
+
+    negative_periods = (
+        serializers.IntegerField()
+    )

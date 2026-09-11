@@ -2,8 +2,8 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django.core.exceptions import ValidationError
 
-from .portfolio_valuation import (
-    build_portfolio_valuation_series,
+from .portfolio_returns import (
+    build_portfolio_return_series,
 )
 
 
@@ -24,110 +24,72 @@ def get_portfolio_performance(
     *,
     portfolio,
 ):
-    valuation = (
-        build_portfolio_valuation_series(
+    portfolio_returns = (
+        build_portfolio_return_series(
             portfolio=portfolio
         )
     )
 
-    valuation_series = valuation[
+    return_series = portfolio_returns[
         "series"
     ]
 
-    previous_portfolio_value = None
+    cumulative_growth_factor = (
+        portfolio_returns[
+            "cumulative_growth_factor"
+        ]
+    )
 
-    cumulative_growth_factor = Decimal("1")
-
-    net_external_cash_flow = Decimal("0")
+    net_external_cash_flow = sum(
+        (
+            point["net_cash_flow"]
+            for point in return_series
+        ),
+        Decimal("0"),
+    )
 
     series = []
 
-    for valuation_point in valuation_series:
-        portfolio_value = (
-            valuation_point[
-                "portfolio_value"
-            ]
-        )
-
-        daily_cash_flow = (
-            valuation_point[
-                "net_cash_flow"
-            ]
-        )
-
-        net_external_cash_flow += (
-            daily_cash_flow
-        )
-
-        daily_return = None
-
-        if (
-            previous_portfolio_value
-            is not None
-            and previous_portfolio_value > 0
-        ):
-            daily_return = (
-                (
-                    portfolio_value
-                    - daily_cash_flow
-                )
-                / previous_portfolio_value
-                - Decimal("1")
-            )
-
-            cumulative_growth_factor *= (
-                Decimal("1")
-                + daily_return
-            )
-
-        elif (
-            previous_portfolio_value
-            is not None
-            and previous_portfolio_value == 0
-            and portfolio_value > 0
-            and daily_cash_flow <= 0
-        ):
-            raise ValidationError(
-                "Portfolio performance cannot "
-                "restart from zero without an "
-                "external cash contribution."
-            )
+    for point in return_series:
+        period_return = point[
+            "period_return"
+        ]
 
         series.append(
             {
-                "date": valuation_point[
-                    "date"
-                ],
+                "date": point["date"],
                 "portfolio_value": (
-                    portfolio_value.quantize(
+                    point[
+                        "portfolio_value"
+                    ].quantize(
                         MONEY_PRECISION,
                         rounding=ROUND_HALF_UP,
                     )
                 ),
                 "net_cash_flow": (
-                    daily_cash_flow.quantize(
+                    point[
+                        "net_cash_flow"
+                    ].quantize(
                         MONEY_PRECISION,
                         rounding=ROUND_HALF_UP,
                     )
                 ),
                 "daily_return_percentage": (
                     None
-                    if daily_return is None
+                    if period_return is None
                     else _to_percentage(
-                        daily_return
+                        period_return
                     )
                 ),
                 "cumulative_twr_percentage": (
                     _to_percentage(
-                        cumulative_growth_factor
+                        point[
+                            "cumulative_growth_factor"
+                        ]
                         - Decimal("1")
                     )
                 ),
             }
-        )
-
-        previous_portfolio_value = (
-            portfolio_value
         )
 
     if not series:

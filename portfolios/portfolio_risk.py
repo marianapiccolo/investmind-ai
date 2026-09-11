@@ -2,8 +2,8 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django.core.exceptions import ValidationError
 
-from .portfolio_valuation import (
-    build_portfolio_valuation_series,
+from .portfolio_returns import (
+    build_portfolio_return_series,
 )
 
 
@@ -57,12 +57,10 @@ def _calculate_annualized_volatility(
         sample_variance.sqrt()
     )
 
-    annualized_volatility = (
+    return (
         daily_volatility
         * TRADING_DAYS_PER_YEAR.sqrt()
     )
-
-    return annualized_volatility
 
 
 def _calculate_annualized_downside_deviation(
@@ -104,105 +102,19 @@ def get_portfolio_risk_analytics(
     *,
     portfolio,
 ):
-    valuation = (
-        build_portfolio_valuation_series(
+    portfolio_returns = (
+        build_portfolio_return_series(
             portfolio=portfolio
         )
     )
 
-    valuation_series = valuation[
+    return_series = portfolio_returns[
         "series"
     ]
 
-    if not valuation_series:
-        raise ValidationError(
-            "No valuation data is available "
-            "for portfolio risk analytics."
-        )
-
-    previous_portfolio_value = None
-
-    return_points = []
-
-    cumulative_growth_factor = Decimal("1")
-    running_peak = Decimal("1")
-
-    maximum_drawdown = Decimal("0")
-
-    for valuation_point in valuation_series:
-        portfolio_value = (
-            valuation_point[
-                "portfolio_value"
-            ]
-        )
-
-        net_cash_flow = (
-            valuation_point[
-                "net_cash_flow"
-            ]
-        )
-
-        if (
-            previous_portfolio_value
-            is not None
-            and previous_portfolio_value > 0
-        ):
-            period_return = (
-                (
-                    portfolio_value
-                    - net_cash_flow
-                )
-                / previous_portfolio_value
-                - Decimal("1")
-            )
-
-            cumulative_growth_factor *= (
-                Decimal("1")
-                + period_return
-            )
-
-            if (
-                cumulative_growth_factor
-                > running_peak
-            ):
-                running_peak = (
-                    cumulative_growth_factor
-                )
-
-            drawdown = (
-                cumulative_growth_factor
-                / running_peak
-                - Decimal("1")
-            )
-
-            if drawdown < maximum_drawdown:
-                maximum_drawdown = drawdown
-
-            return_points.append(
-                {
-                    "date": valuation_point[
-                        "date"
-                    ],
-                    "return": period_return,
-                }
-            )
-
-        elif (
-            previous_portfolio_value
-            is not None
-            and previous_portfolio_value == 0
-            and portfolio_value > 0
-            and net_cash_flow <= 0
-        ):
-            raise ValidationError(
-                "Portfolio performance cannot "
-                "restart from zero without an "
-                "external cash contribution."
-            )
-
-        previous_portfolio_value = (
-            portfolio_value
-        )
+    return_points = portfolio_returns[
+        "return_points"
+    ]
 
     if not return_points:
         raise ValidationError(
@@ -227,6 +139,26 @@ def get_portfolio_risk_analytics(
         )
     )
 
+    running_peak = Decimal("1")
+    maximum_drawdown = Decimal("0")
+
+    for point in return_series:
+        growth_factor = point[
+            "cumulative_growth_factor"
+        ]
+
+        if growth_factor > running_peak:
+            running_peak = growth_factor
+
+        drawdown = (
+            growth_factor
+            / running_peak
+            - Decimal("1")
+        )
+
+        if drawdown < maximum_drawdown:
+            maximum_drawdown = drawdown
+
     best_period = max(
         return_points,
         key=lambda point: point["return"],
@@ -249,18 +181,24 @@ def get_portfolio_risk_analytics(
         if period_return < 0
     )
 
+    cumulative_growth_factor = (
+        portfolio_returns[
+            "cumulative_growth_factor"
+        ]
+    )
+
     return {
         "portfolio_id": portfolio.id,
         "name": portfolio.name,
         "currency": portfolio.currency,
-        "start_date": valuation_series[
+        "start_date": return_series[
             0
         ]["date"],
-        "end_date": valuation_series[
+        "end_date": return_series[
             -1
         ]["date"],
         "observations": len(
-            valuation_series
+            return_series
         ),
         "return_observations": len(
             return_points

@@ -36,7 +36,10 @@ from .serializers import (
     PortfolioMoneyWeightedPerformanceSerializer,
     PortfolioPerformanceAttributionSerializer,
     PortfolioRiskAnalyticsSerializer,
+    PortfolioRiskAdjustedPerformanceSerializer,
+    RiskAdjustedPerformanceQuerySerializer,
 )
+
 from .services import (
     get_portfolio_market_summary,
     get_portfolio_summary,
@@ -77,6 +80,10 @@ from .performance_attribution import (
 
 from .portfolio_risk import (
     get_portfolio_risk_analytics,
+)
+
+from .risk_adjusted_performance import (
+    get_portfolio_risk_adjusted_performance,
 )
 
 logger = logging.getLogger(__name__)
@@ -392,6 +399,87 @@ class PortfolioViewSet(viewsets.ModelViewSet):
             serializer.data
         )
 
+    @extend_schema(
+    summary="Get risk-adjusted portfolio performance",
+    description=(
+        "Returns Sharpe and Sortino ratios using "
+        "transaction-adjusted portfolio returns. "
+        "The annual risk-free rate must be provided "
+        "explicitly as a percentage."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="annual_risk_free_rate",
+            type=float,
+            location=OpenApiParameter.QUERY,
+            required=True,
+            description=(
+                "Annual risk-free rate as a "
+                "percentage. Example: 4.25 means "
+                "4.25% per year."
+            ),
+        ),
+    ],
+    responses={
+        200: (
+            PortfolioRiskAdjustedPerformanceSerializer
+        ),
+    },
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="risk-adjusted-performance",
+        url_name="risk-adjusted-performance",
+    )
+    def risk_adjusted_performance(
+        self,
+        request,
+        pk=None,
+    ):
+        portfolio = self.get_object()
+
+        query_serializer = (
+            RiskAdjustedPerformanceQuerySerializer(
+                data=request.query_params
+            )
+        )
+
+        query_serializer.is_valid(
+            raise_exception=True
+        )
+
+        annual_risk_free_rate = (
+            query_serializer.validated_data[
+                "annual_risk_free_rate"
+            ]
+        )
+
+        try:
+            performance_data = (
+                get_portfolio_risk_adjusted_performance(
+                    portfolio=portfolio,
+                    annual_risk_free_rate_percentage=(
+                        annual_risk_free_rate
+                    ),
+                )
+            )
+
+        except DjangoValidationError as exc:
+            raise DRFValidationError(
+                exc.messages
+            ) from exc
+
+        serializer = (
+            PortfolioRiskAdjustedPerformanceSerializer(
+                performance_data
+            )
+        )
+
+        return Response(
+            serializer.data
+        )
+    
 class TransactionViewSet(
     mixins.ListModelMixin,
     mixins.CreateModelMixin,

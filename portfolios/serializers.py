@@ -765,3 +765,65 @@ class PortfolioRiskAnalyticsSerializer(
     negative_periods = (
         serializers.IntegerField()
     )
+
+class RiskAdjustedPerformanceQuerySerializer(
+    serializers.Serializer
+):
+    annual_risk_free_rate = (
+        serializers.DecimalField(
+            max_digits=8,
+            decimal_places=4,
+            required=True,
+        )
+    )
+
+
+class PortfolioRiskAdjustedPerformanceSerializer(
+    serializers.Serializer
+):
+    portfolio_id = serializers.IntegerField()
+
+    name = serializers.CharField()
+
+    currency = serializers.CharField()
+
+    start_date = serializers.DateField()
+
+    end_date = serializers.DateField()
+
+    return_observations = (
+        serializers.IntegerField()
+    )
+
+    annual_risk_free_rate_percentage = (
+        serializers.DecimalField(
+            max_digits=8,
+            decimal_places=4,
+        )
+    )
+
+    periodic_risk_free_rate_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=6,
+        )
+    )
+
+    time_weighted_return_percentage = (
+        serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+        )
+    )
+
+    sharpe_ratio = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        allow_null=True,
+    )
+
+    sortino_ratio = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        allow_null=True,
+    )

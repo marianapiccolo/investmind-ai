@@ -827,3 +827,92 @@ class PortfolioRiskAdjustedPerformanceSerializer(
         decimal_places=4,
         allow_null=True,
     )
+
+class PairwiseCorrelationSerializer(
+    serializers.Serializer
+):
+    asset_a_id = serializers.IntegerField()
+
+    ticker_a = serializers.CharField()
+
+    asset_b_id = serializers.IntegerField()
+
+    ticker_b = serializers.CharField()
+
+    return_observations = (
+        serializers.IntegerField()
+    )
+
+    correlation = serializers.DecimalField(
+        max_digits=6,
+        decimal_places=4,
+        allow_null=True,
+    )
+
+
+class CorrelationMatrixRowSerializer(
+    serializers.Serializer
+):
+    asset_id = serializers.IntegerField()
+
+    ticker = serializers.CharField()
+
+    correlations = serializers.DictField(
+        child=serializers.DecimalField(
+            max_digits=6,
+            decimal_places=4,
+            allow_null=True,
+        )
+    )
+
+
+class PortfolioDiversificationAnalyticsSerializer(
+    serializers.Serializer
+):
+    portfolio_id = serializers.IntegerField()
+
+    name = serializers.CharField()
+
+    currency = serializers.CharField()
+
+    asset_count = serializers.IntegerField()
+
+    total_pairs = serializers.IntegerField()
+
+    comparable_pairs = serializers.IntegerField()
+
+    unavailable_pairs = (
+        serializers.IntegerField()
+    )
+
+    average_pairwise_correlation = (
+        serializers.DecimalField(
+            max_digits=6,
+            decimal_places=4,
+            allow_null=True,
+        )
+    )
+
+    most_correlated_pair = (
+        PairwiseCorrelationSerializer(
+            allow_null=True
+        )
+    )
+
+    least_correlated_pair = (
+        PairwiseCorrelationSerializer(
+            allow_null=True
+        )
+    )
+
+    pair_correlations = (
+        PairwiseCorrelationSerializer(
+            many=True
+        )
+    )
+
+    correlation_matrix = (
+        CorrelationMatrixRowSerializer(
+            many=True
+        )
+    )

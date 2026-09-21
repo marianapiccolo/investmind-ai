@@ -14,7 +14,7 @@ from rest_framework.exceptions import (
 )
 from rest_framework.response import Response
 
-from .exceptions import MarketDataUnavailable
+from .exceptions import MarketDataUnavailable, AIServiceUnavailable
 from .integrations.alpha_vantage import MarketDataError
 from .market_data import get_cached_market_quote
 from .models import Asset, Portfolio, Position, Transaction
@@ -39,6 +39,7 @@ from .serializers import (
     PortfolioRiskAdjustedPerformanceSerializer,
     RiskAdjustedPerformanceQuerySerializer,
     PortfolioDiversificationAnalyticsSerializer,
+    AIPortfolioReportSerializer,
 )
 
 from .services import (
@@ -48,6 +49,7 @@ from .services import (
 from .tasks import refresh_market_quote_task
 from .throttles import (
     MarketRefreshThrottle,
+    AIReportThrottle,
 )
 
 from .analytics import (
@@ -89,6 +91,13 @@ from .risk_adjusted_performance import (
 
 from .portfolio_diversification import (
     get_portfolio_diversification_analytics,
+)
+
+from .ai.openai_client import (
+    AIProviderError,
+)
+from .ai.portfolio_report import (
+    generate_ai_portfolio_report,
 )
 
 logger = logging.getLogger(__name__)
@@ -533,6 +542,63 @@ class PortfolioViewSet(viewsets.ModelViewSet):
 
         return Response(
             serializer.data
+        )
+    
+    @extend_schema(
+    summary="Generate AI portfolio report",
+    description=(
+        "Generates a structured AI explanation "
+        "of deterministic portfolio analytics. "
+        "The AI interprets backend-calculated "
+        "metrics and does not calculate portfolio "
+        "financial metrics itself."
+    ),
+    request=None,
+    responses={
+        200: AIPortfolioReportSerializer,
+    },
+    )
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="ai-report",
+        url_name="ai-report",
+        throttle_classes=[
+            AIReportThrottle
+        ],
+    )
+    def ai_report(
+        self,
+        request,
+        pk=None,
+    ):
+        portfolio = self.get_object()
+
+        try:
+            report = (
+                generate_ai_portfolio_report(
+                    portfolio=portfolio
+                )
+            )
+
+        except AIProviderError as exc:
+            logger.warning(
+                "AI portfolio report generation failed "
+                "for portfolio_id=%s",
+                portfolio.id,
+            )
+
+            raise AIServiceUnavailable() from exc
+
+        serializer = (
+            AIPortfolioReportSerializer(
+                report
+            )
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
         )
     
 class TransactionViewSet(

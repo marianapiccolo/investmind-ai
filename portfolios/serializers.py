@@ -916,3 +916,42 @@ class PortfolioDiversificationAnalyticsSerializer(
             many=True
         )
     )
+
+class AIPortfolioReportSerializer(
+    serializers.Serializer
+):
+    portfolio_id = serializers.IntegerField()
+
+    name = serializers.CharField()
+
+    model = serializers.CharField()
+
+    executive_summary = (
+        serializers.CharField()
+    )
+
+    performance_analysis = (
+        serializers.CharField()
+    )
+
+    risk_analysis = (
+        serializers.CharField()
+    )
+
+    diversification_analysis = (
+        serializers.CharField()
+    )
+
+    key_observations = (
+        serializers.ListField(
+            child=serializers.CharField()
+        )
+    )
+
+    limitations = serializers.ListField(
+        child=serializers.CharField()
+    )
+
+    educational_note = (
+        serializers.CharField()
+    )

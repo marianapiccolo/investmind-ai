@@ -281,3 +281,26 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
 
     X_FRAME_OPTIONS = "DENY"
+
+OPENAI_API_KEY = os.environ.get(
+    "OPENAI_API_KEY"
+)
+
+OPENAI_MODEL = os.environ.get(
+    "OPENAI_MODEL",
+    "gpt-5.6-terra",
+)
+
+OPENAI_TIMEOUT_SECONDS = int(
+    os.environ.get(
+        "OPENAI_TIMEOUT_SECONDS",
+        "30",
+    )
+)
+
+OPENAI_MAX_OUTPUT_TOKENS = int(
+    os.environ.get(
+        "OPENAI_MAX_OUTPUT_TOKENS",
+        "1200",
+    )
+)

@@ -917,6 +917,14 @@ class PortfolioDiversificationAnalyticsSerializer(
         )
     )
 
+class AIReportEvidenceSerializer(
+    serializers.Serializer
+):
+    metric_path = serializers.CharField()
+
+    value = serializers.CharField()
+
+
 class AIPortfolioReportSerializer(
     serializers.Serializer
 ):
@@ -954,4 +962,14 @@ class AIPortfolioReportSerializer(
 
     educational_note = (
         serializers.CharField()
+    )
+
+    evidence = AIReportEvidenceSerializer(
+        many=True
+    )
+
+    unavailable_sections = (
+        serializers.ListField(
+            child=serializers.CharField()
+        )
     )

@@ -40,6 +40,31 @@ REPORT_SCHEMA = {
         "educational_note": {
             "type": "string",
         },
+        "evidence": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "metric_path": {
+                        "type": "string",
+                    },
+                    "value": {
+                        "type": "string",
+                    },
+                },
+                "required": [
+                    "metric_path",
+                    "value",
+                ],
+                "additionalProperties": False,
+            },
+        },
+        "unavailable_sections": {
+            "type": "array",
+            "items": {
+                "type": "string",
+            },
+        },
     },
     "required": [
         "executive_summary",
@@ -49,6 +74,8 @@ REPORT_SCHEMA = {
         "key_observations",
         "limitations",
         "educational_note",
+        "evidence",
+        "unavailable_sections",
     ],
     "additionalProperties": False,
 }
@@ -65,6 +92,8 @@ Rules:
 - Do not invent financial values, market data, benchmarks,
   holdings, dates, or assumptions.
 - Do not recalculate or replace backend financial metrics.
+- Any numerical financial value mentioned in the report
+  must come directly from the provided context.
 - Clearly distinguish performance, risk, concentration,
   attribution, and diversification.
 - If a section is marked unavailable, acknowledge the
@@ -77,16 +106,27 @@ Rules:
 - Mention relevant limitations of short or incomplete
   historical samples.
 - Keep the response concise and useful.
+
+Evidence rules:
+- For metrics used in the analysis, include evidence items.
+- metric_path must be the exact dot-separated path from
+  the supplied context.
+- value must exactly match the value supplied at that path.
+- Do not create evidence for unavailable data.
+- unavailable_sections must contain the exact section names
+  whose available field is false.
 """
 
 
 def generate_ai_portfolio_report(
     *,
     portfolio,
+    context=None,
 ):
-    context = build_ai_portfolio_context(
-        portfolio=portfolio
-    )
+    if context is None:
+        context = build_ai_portfolio_context(
+            portfolio=portfolio
+        )
 
     report = generate_structured_response(
         instructions=(

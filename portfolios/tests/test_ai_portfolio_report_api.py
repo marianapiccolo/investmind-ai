@@ -82,6 +82,8 @@ class AIPortfolioReportAPITests(
             "educational_note": (
                 "Educational only."
             ),
+            "evidence": [],
+            "unavailable_sections": [],
         }
 
         url = reverse(

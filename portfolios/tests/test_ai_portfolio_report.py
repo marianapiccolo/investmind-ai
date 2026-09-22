@@ -34,27 +34,23 @@ class AIPortfolioReportTests(
             )
         )
 
-    @patch(
-        "portfolios.ai.portfolio_report."
-        "generate_structured_response"
-    )
-    @patch(
-        "portfolios.ai.portfolio_report."
-        "build_ai_portfolio_context"
-    )
-    def test_generates_ai_report(
-        self,
-        mock_context,
-        mock_generate,
-    ):
-        mock_context.return_value = {
+        self.context = {
             "portfolio": {
                 "id": self.portfolio.id,
                 "name": self.portfolio.name,
                 "currency": "EUR",
-            }
+            },
+            "sections": {},
         }
 
+    @patch(
+        "portfolios.ai.portfolio_report."
+        "generate_structured_response"
+    )
+    def test_generates_ai_report(
+        self,
+        mock_generate,
+    ):
         mock_generate.return_value = {
             "executive_summary": (
                 "Portfolio summary."
@@ -77,11 +73,14 @@ class AIPortfolioReportTests(
             "educational_note": (
                 "Educational analysis only."
             ),
+            "evidence": [],
+            "unavailable_sections": [],
         }
 
         report = (
             generate_ai_portfolio_report(
-                portfolio=self.portfolio
+                portfolio=self.portfolio,
+                context=self.context,
             )
         )
 
@@ -98,10 +97,6 @@ class AIPortfolioReportTests(
         self.assertEqual(
             report["executive_summary"],
             "Portfolio summary.",
-        )
-
-        mock_context.assert_called_once_with(
-            portfolio=self.portfolio
         )
 
         mock_generate.assert_called_once()

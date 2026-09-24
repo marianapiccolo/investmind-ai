@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.utils import (
     OpenApiParameter,
@@ -14,90 +15,70 @@ from rest_framework.exceptions import (
 )
 from rest_framework.response import Response
 
-from .exceptions import MarketDataUnavailable, AIServiceUnavailable
+from .analytics import (
+    get_portfolio_composition_analytics,
+)
+from .benchmark_analytics import (
+    get_asset_benchmark_comparison,
+)
+from .exceptions import MarketDataUnavailable
+from .historical_analytics import (
+    get_asset_historical_analytics,
+)
 from .integrations.alpha_vantage import MarketDataError
 from .market_data import get_cached_market_quote
-from .models import Asset, Portfolio, Position, Transaction
+from .models import AIReport, Asset, Portfolio, Position, Transaction
+from .money_weighted_performance import (
+    get_portfolio_money_weighted_performance,
+)
+from .performance_attribution import (
+    get_portfolio_performance_attribution,
+)
+from .portfolio_diversification import (
+    get_portfolio_diversification_analytics,
+)
+from .portfolio_performance import (
+    get_portfolio_performance,
+)
+from .portfolio_risk import (
+    get_portfolio_risk_analytics,
+)
+from .risk_adjusted_performance import (
+    get_portfolio_risk_adjusted_performance,
+)
 from .serializers import (
+    AIReportSerializer,
+    AssetBenchmarkComparisonSerializer,
+    AssetHistoricalAnalyticsSerializer,
     AssetSerializer,
+    MarketPriceSerializer,
     MarketQuoteSerializer,
+    PortfolioCompositionAnalyticsSerializer,
+    PortfolioDiversificationAnalyticsSerializer,
     PortfolioMarketSummarySerializer,
+    PortfolioMoneyWeightedPerformanceSerializer,
+    PortfolioPerformanceAttributionSerializer,
+    PortfolioPerformanceSerializer,
+    PortfolioRiskAdjustedPerformanceSerializer,
+    PortfolioRiskAnalyticsSerializer,
     PortfolioSerializer,
     PortfolioSummarySerializer,
     PositionSerializer,
-    TransactionSerializer,
-    MarketQuoteSerializer,
-    PortfolioMarketSummarySerializer,
-    PortfolioCompositionAnalyticsSerializer,
-    MarketPriceSerializer,
-    AssetHistoricalAnalyticsSerializer,
-    AssetBenchmarkComparisonSerializer,
-    PortfolioPerformanceSerializer,
-    PortfolioMoneyWeightedPerformanceSerializer,
-    PortfolioPerformanceAttributionSerializer,
-    PortfolioRiskAnalyticsSerializer,
-    PortfolioRiskAdjustedPerformanceSerializer,
     RiskAdjustedPerformanceQuerySerializer,
-    PortfolioDiversificationAnalyticsSerializer,
-    AIPortfolioReportSerializer,
+    TransactionSerializer,
 )
-
 from .services import (
     get_portfolio_market_summary,
     get_portfolio_summary,
 )
-from .tasks import refresh_market_quote_task
-from .throttles import (
-    MarketRefreshThrottle,
-    AIReportThrottle,
-)
-
-from .analytics import (
-    get_portfolio_composition_analytics,
-)
-
 from .tasks import (
+    generate_ai_portfolio_report_task,
     refresh_market_quote_task,
     sync_asset_market_history_task,
 )
-
-from .historical_analytics import (
-    get_asset_historical_analytics,
-)
-
-from .benchmark_analytics import (
-    get_asset_benchmark_comparison,
-)
-
-from .portfolio_performance import (
-    get_portfolio_performance,
-)
-
-from .money_weighted_performance import (
-    get_portfolio_money_weighted_performance,
-)
-
-from .performance_attribution import (
-    get_portfolio_performance_attribution,
-)
-
-from .portfolio_risk import (
-    get_portfolio_risk_analytics,
-)
-
-from .risk_adjusted_performance import (
-    get_portfolio_risk_adjusted_performance,
-)
-
-from .portfolio_diversification import (
-    get_portfolio_diversification_analytics,
-)
-
-from .ai.openai_client import (
-    AIProviderError,
-)
-from .ai.portfolio_report import (
-    generate_ai_portfolio_report,
+from .throttles import (
+    AIReportThrottle,
+    MarketRefreshThrottle,
 )
 
 logger = logging.getLogger(__name__)
@@ -129,7 +110,6 @@ class PortfolioViewSet(viewsets.ModelViewSet):
     )
     def summary(self, request, pk=None):
         portfolio = self.get_object()
-
         try:
             summary_data = get_portfolio_summary(portfolio=portfolio)
         except DjangoValidationError as exc:
@@ -139,9 +119,7 @@ class PortfolioViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         serializer = PortfolioSummarySerializer(summary_data)
-
         return Response(serializer.data)
 
     @extend_schema(
@@ -163,23 +141,17 @@ class PortfolioViewSet(viewsets.ModelViewSet):
     )
     def market_summary(self, request, pk=None):
         portfolio = self.get_object()
-
         try:
             summary_data = get_portfolio_market_summary(portfolio=portfolio)
-
         except DjangoValidationError as exc:
             raise DRFValidationError(exc.messages) from exc
-
         except MarketDataError as exc:
             logger.warning(
                 "Market data unavailable: %s",
                 exc,
             )
-
             raise MarketDataUnavailable(str(exc)) from exc
-
         serializer = PortfolioMarketSummarySerializer(summary_data)
-
         return Response(serializer.data)
 
     @extend_schema(
@@ -205,32 +177,27 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         pk=None,
     ):
         portfolio = self.get_object()
-
         try:
             analytics_data = get_portfolio_composition_analytics(portfolio=portfolio)
-
         except DjangoValidationError as exc:
             raise DRFValidationError(exc.messages) from exc
-
         except MarketDataError as exc:
             raise MarketDataUnavailable(str(exc)) from exc
-
         serializer = PortfolioCompositionAnalyticsSerializer(analytics_data)
-
         return Response(serializer.data)
-    
+
     @extend_schema(
-    summary="Get portfolio historical performance",
-    description=(
-        "Returns transaction-adjusted historical "
-        "portfolio performance using Time-Weighted "
-        "Return. BUY transactions are treated as "
-        "external contributions and SELL transactions "
-        "as external withdrawals in the current model."
-    ),
-    responses={
-        200: PortfolioPerformanceSerializer,
-    },
+        summary="Get portfolio historical performance",
+        description=(
+            "Returns transaction-adjusted historical "
+            "portfolio performance using Time-Weighted "
+            "Return. BUY transactions are treated as "
+            "external contributions and SELL transactions "
+            "as external withdrawals in the current model."
+        ),
+        responses={
+            200: PortfolioPerformanceSerializer,
+        },
     )
     @action(
         detail=True,
@@ -244,44 +211,26 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         pk=None,
     ):
         portfolio = self.get_object()
-
         try:
-            performance_data = (
-                get_portfolio_performance(
-                    portfolio=portfolio
-                )
-            )
-
+            performance_data = get_portfolio_performance(portfolio=portfolio)
         except DjangoValidationError as exc:
-            raise DRFValidationError(
-                exc.messages
-            ) from exc
+            raise DRFValidationError(exc.messages) from exc
+        serializer = PortfolioPerformanceSerializer(performance_data)
+        return Response(serializer.data)
 
-        serializer = (
-            PortfolioPerformanceSerializer(
-                performance_data
-            )
-        )
-
-        return Response(
-            serializer.data
-        )
-    
     @extend_schema(
-    summary="Get portfolio money-weighted performance",
-    description=(
-        "Returns the annualized Money-Weighted "
-        "Return (XIRR) using dated portfolio cash "
-        "flows. BUY transactions are investor "
-        "outflows, SELL transactions are inflows, "
-        "and the ending portfolio value is included "
-        "as the terminal value."
-    ),
-    responses={
-        200: (
-            PortfolioMoneyWeightedPerformanceSerializer
+        summary="Get portfolio money-weighted performance",
+        description=(
+            "Returns the annualized Money-Weighted "
+            "Return (XIRR) using dated portfolio cash "
+            "flows. BUY transactions are investor "
+            "outflows, SELL transactions are inflows, "
+            "and the ending portfolio value is included "
+            "as the terminal value."
         ),
-    },
+        responses={
+            200: PortfolioMoneyWeightedPerformanceSerializer,
+        },
     )
     @action(
         detail=True,
@@ -295,41 +244,25 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         pk=None,
     ):
         portfolio = self.get_object()
-
         try:
-            performance_data = (
-                get_portfolio_money_weighted_performance(
-                    portfolio=portfolio
-                )
+            performance_data = get_portfolio_money_weighted_performance(
+                portfolio=portfolio
             )
-
         except DjangoValidationError as exc:
-            raise DRFValidationError(
-                exc.messages
-            ) from exc
+            raise DRFValidationError(exc.messages) from exc
+        serializer = PortfolioMoneyWeightedPerformanceSerializer(performance_data)
+        return Response(serializer.data)
 
-        serializer = (
-            PortfolioMoneyWeightedPerformanceSerializer(
-                performance_data
-            )
-        )
-
-        return Response(
-            serializer.data
-        )
-    
     @extend_schema(
-    summary="Get portfolio performance attribution",
-    description=(
-        "Returns the contribution of each asset "
-        "and sector to the portfolio's "
-        "time-weighted return."
-    ),
-    responses={
-        200: (
-            PortfolioPerformanceAttributionSerializer
+        summary="Get portfolio performance attribution",
+        description=(
+            "Returns the contribution of each asset "
+            "and sector to the portfolio's "
+            "time-weighted return."
         ),
-    },
+        responses={
+            200: PortfolioPerformanceAttributionSerializer,
+        },
     )
     @action(
         detail=True,
@@ -343,40 +276,26 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         pk=None,
     ):
         portfolio = self.get_object()
-
         try:
-            attribution_data = (
-                get_portfolio_performance_attribution(
-                    portfolio=portfolio
-                )
+            attribution_data = get_portfolio_performance_attribution(
+                portfolio=portfolio
             )
-
         except DjangoValidationError as exc:
-            raise DRFValidationError(
-                exc.messages
-            ) from exc
+            raise DRFValidationError(exc.messages) from exc
+        serializer = PortfolioPerformanceAttributionSerializer(attribution_data)
+        return Response(serializer.data)
 
-        serializer = (
-            PortfolioPerformanceAttributionSerializer(
-                attribution_data
-            )
-        )
-
-        return Response(
-            serializer.data
-        )
-    
     @extend_schema(
-    summary="Get portfolio risk analytics",
-    description=(
-        "Returns portfolio risk metrics based on "
-        "transaction-adjusted historical returns, "
-        "including annualized volatility, downside "
-        "deviation and maximum drawdown."
-    ),
-    responses={
-        200: PortfolioRiskAnalyticsSerializer,
-    },
+        summary="Get portfolio risk analytics",
+        description=(
+            "Returns portfolio risk metrics based on "
+            "transaction-adjusted historical returns, "
+            "including annualized volatility, downside "
+            "deviation and maximum drawdown."
+        ),
+        responses={
+            200: PortfolioRiskAnalyticsSerializer,
+        },
     )
     @action(
         detail=True,
@@ -390,55 +309,37 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         pk=None,
     ):
         portfolio = self.get_object()
-
         try:
-            risk_data = (
-                get_portfolio_risk_analytics(
-                    portfolio=portfolio
-                )
-            )
-
+            risk_data = get_portfolio_risk_analytics(portfolio=portfolio)
         except DjangoValidationError as exc:
-            raise DRFValidationError(
-                exc.messages
-            ) from exc
-
-        serializer = (
-            PortfolioRiskAnalyticsSerializer(
-                risk_data
-            )
-        )
-
-        return Response(
-            serializer.data
-        )
+            raise DRFValidationError(exc.messages) from exc
+        serializer = PortfolioRiskAnalyticsSerializer(risk_data)
+        return Response(serializer.data)
 
     @extend_schema(
-    summary="Get risk-adjusted portfolio performance",
-    description=(
-        "Returns Sharpe and Sortino ratios using "
-        "transaction-adjusted portfolio returns. "
-        "The annual risk-free rate must be provided "
-        "explicitly as a percentage."
-    ),
-    parameters=[
-        OpenApiParameter(
-            name="annual_risk_free_rate",
-            type=float,
-            location=OpenApiParameter.QUERY,
-            required=True,
-            description=(
-                "Annual risk-free rate as a "
-                "percentage. Example: 4.25 means "
-                "4.25% per year."
+        summary="Get risk-adjusted portfolio performance",
+        description=(
+            "Returns Sharpe and Sortino ratios using "
+            "transaction-adjusted portfolio returns. "
+            "The annual risk-free rate must be provided "
+            "explicitly as a percentage."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="annual_risk_free_rate",
+                type=float,
+                location=OpenApiParameter.QUERY,
+                required=True,
+                description=(
+                    "Annual risk-free rate as a "
+                    "percentage. Example: 4.25 means "
+                    "4.25% per year."
+                ),
             ),
-        ),
-    ],
-    responses={
-        200: (
-            PortfolioRiskAdjustedPerformanceSerializer
-        ),
-    },
+        ],
+        responses={
+            200: PortfolioRiskAdjustedPerformanceSerializer,
+        },
     )
     @action(
         detail=True,
@@ -452,62 +353,33 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         pk=None,
     ):
         portfolio = self.get_object()
-
-        query_serializer = (
-            RiskAdjustedPerformanceQuerySerializer(
-                data=request.query_params
-            )
+        query_serializer = RiskAdjustedPerformanceQuerySerializer(
+            data=request.query_params
         )
-
-        query_serializer.is_valid(
-            raise_exception=True
-        )
-
-        annual_risk_free_rate = (
-            query_serializer.validated_data[
-                "annual_risk_free_rate"
-            ]
-        )
-
+        query_serializer.is_valid(raise_exception=True)
+        annual_risk_free_rate = query_serializer.validated_data["annual_risk_free_rate"]
         try:
-            performance_data = (
-                get_portfolio_risk_adjusted_performance(
-                    portfolio=portfolio,
-                    annual_risk_free_rate_percentage=(
-                        annual_risk_free_rate
-                    ),
-                )
+            performance_data = get_portfolio_risk_adjusted_performance(
+                portfolio=portfolio,
+                annual_risk_free_rate_percentage=annual_risk_free_rate,
             )
-
         except DjangoValidationError as exc:
-            raise DRFValidationError(
-                exc.messages
-            ) from exc
+            raise DRFValidationError(exc.messages) from exc
+        serializer = PortfolioRiskAdjustedPerformanceSerializer(performance_data)
+        return Response(serializer.data)
 
-        serializer = (
-            PortfolioRiskAdjustedPerformanceSerializer(
-                performance_data
-            )
-        )
-
-        return Response(
-            serializer.data
-        )
-    
     @extend_schema(
-    summary="Get portfolio diversification analytics",
-    description=(
-        "Returns pairwise historical return "
-        "correlations for the portfolio's current "
-        "assets, including average correlation, "
-        "most and least correlated pairs, and a "
-        "correlation matrix."
-    ),
-    responses={
-        200: (
-            PortfolioDiversificationAnalyticsSerializer
+        summary="Get portfolio diversification analytics",
+        description=(
+            "Returns pairwise historical return "
+            "correlations for the portfolio's current "
+            "assets, including average correlation, "
+            "most and least correlated pairs, and a "
+            "correlation matrix."
         ),
-    },
+        responses={
+            200: PortfolioDiversificationAnalyticsSerializer,
+        },
     )
     @action(
         detail=True,
@@ -521,86 +393,59 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         pk=None,
     ):
         portfolio = self.get_object()
-
         try:
-            diversification_data = (
-                get_portfolio_diversification_analytics(
-                    portfolio=portfolio
-                )
+            diversification_data = get_portfolio_diversification_analytics(
+                portfolio=portfolio
             )
-
         except DjangoValidationError as exc:
-            raise DRFValidationError(
-                exc.messages
-            ) from exc
+            raise DRFValidationError(exc.messages) from exc
+        serializer = PortfolioDiversificationAnalyticsSerializer(diversification_data)
+        return Response(serializer.data)
 
-        serializer = (
-            PortfolioDiversificationAnalyticsSerializer(
-                diversification_data
-            )
-        )
-
-        return Response(
-            serializer.data
-        )
-    
     @extend_schema(
-    summary="Generate AI portfolio report",
-    description=(
-        "Generates a structured AI explanation "
-        "of deterministic portfolio analytics. "
-        "The AI interprets backend-calculated "
-        "metrics and does not calculate portfolio "
-        "financial metrics itself."
-    ),
-    request=None,
-    responses={
-        200: AIPortfolioReportSerializer,
-    },
+        summary="Generate AI portfolio report",
+        description=(
+            "Creates an asynchronous AI portfolio "
+            "report job. The report is generated by "
+            "Celery, evaluated, and persisted."
+        ),
+        request=None,
+        responses={
+            202: AIReportSerializer,
+        },
     )
     @action(
         detail=True,
         methods=["post"],
-        url_path="ai-report",
-        url_name="ai-report",
-        throttle_classes=[
-            AIReportThrottle
-        ],
+        url_path="ai-reports",
+        url_name="ai-reports",
+        throttle_classes=[AIReportThrottle],
     )
-    def ai_report(
+    def create_ai_report(
         self,
         request,
         pk=None,
     ):
         portfolio = self.get_object()
-
-        try:
-            report = (
-                generate_ai_portfolio_report(
-                    portfolio=portfolio
-                )
-            )
-
-        except AIProviderError as exc:
-            logger.warning(
-                "AI portfolio report generation failed "
-                "for portfolio_id=%s",
-                portfolio.id,
-            )
-
-            raise AIServiceUnavailable() from exc
-
-        serializer = (
-            AIPortfolioReportSerializer(
-                report
-            )
+        ai_report = AIReport.objects.create(
+            portfolio=portfolio,
+            model=settings.OPENAI_MODEL,
         )
-
+        task = generate_ai_portfolio_report_task.delay(ai_report.id)
+        ai_report.celery_task_id = task.id
+        ai_report.save(
+            update_fields=[
+                "celery_task_id",
+                "updated_at",
+            ]
+        )
+        serializer = AIReportSerializer(ai_report)
         return Response(
             serializer.data,
-            status=status.HTTP_200_OK,
+            status=status.HTTP_202_ACCEPTED,
         )
-    
+
+
 class TransactionViewSet(
     mixins.ListModelMixin,
     mixins.CreateModelMixin,
@@ -613,7 +458,10 @@ class TransactionViewSet(
     def get_queryset(self):
         return Transaction.objects.filter(
             portfolio__user=self.request.user
-        ).select_related("portfolio", "asset")
+        ).select_related(
+            "portfolio",
+            "asset",
+        )
 
 
 class AssetViewSet(viewsets.ReadOnlyModelViewSet):
@@ -638,10 +486,8 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def quote(self, request, pk=None):
         asset = self.get_object()
-
         try:
             quote_data = get_cached_market_quote(symbol=asset.ticker)
-
         except MarketDataError as exc:
             return Response(
                 {
@@ -649,9 +495,7 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
                 },
                 status=status.HTTP_502_BAD_GATEWAY,
             )
-
         serializer = MarketQuoteSerializer(quote_data)
-
         return Response(serializer.data)
 
     @extend_schema(
@@ -680,9 +524,7 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def refresh_quote(self, request, pk=None):
         asset = self.get_object()
-
         task = refresh_market_quote_task.delay(asset.ticker)
-
         return Response(
             {
                 "task_id": task.id,
@@ -712,14 +554,11 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
         pk=None,
     ):
         asset = self.get_object()
-
         prices = asset.market_prices.all()
-
         serializer = MarketPriceSerializer(
             prices,
             many=True,
         )
-
         return Response(serializer.data)
 
     @extend_schema(
@@ -752,9 +591,7 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
         pk=None,
     ):
         asset = self.get_object()
-
         task = sync_asset_market_history_task.delay(asset.id)
-
         return Response(
             {
                 "task_id": task.id,
@@ -762,16 +599,17 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
             },
             status=status.HTTP_202_ACCEPTED,
         )
+
     @extend_schema(
-    summary="Get asset historical analytics",
-    description=(
-        "Returns historical return, volatility, "
-        "maximum drawdown and daily performance "
-        "metrics using stored market prices."
-    ),
-    responses={
-        200: AssetHistoricalAnalyticsSerializer,
-    },
+        summary="Get asset historical analytics",
+        description=(
+            "Returns historical return, volatility, "
+            "maximum drawdown and daily performance "
+            "metrics using stored market prices."
+        ),
+        responses={
+            200: AssetHistoricalAnalyticsSerializer,
+        },
     )
     @action(
         detail=True,
@@ -785,51 +623,33 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
         pk=None,
     ):
         asset = self.get_object()
-
         try:
-            analytics_data = (
-                get_asset_historical_analytics(
-                    asset=asset
-                )
-            )
-
+            analytics_data = get_asset_historical_analytics(asset=asset)
         except DjangoValidationError as exc:
-            raise DRFValidationError(
-                exc.messages
-            ) from exc
+            raise DRFValidationError(exc.messages) from exc
+        serializer = AssetHistoricalAnalyticsSerializer(analytics_data)
+        return Response(serializer.data)
 
-        serializer = (
-            AssetHistoricalAnalyticsSerializer(
-                analytics_data
-            )
-        )
-
-        return Response(
-            serializer.data
-        )
-    
     @extend_schema(
-    summary="Compare asset with benchmark",
-    description=(
-        "Compares historical performance of "
-        "an asset against another asset used as "
-        "a benchmark. Both series are aligned "
-        "by common dates and normalized to 100."
-    ),
-    parameters=[
-        OpenApiParameter(
-            name="benchmark",
-            type=int,
-            location=OpenApiParameter.QUERY,
-            required=True,
-            description=(
-                "Asset ID used as benchmark."
-            ),
+        summary="Compare asset with benchmark",
+        description=(
+            "Compares historical performance of "
+            "an asset against another asset used as "
+            "a benchmark. Both series are aligned "
+            "by common dates and normalized to 100."
         ),
-    ],
-    responses={
-        200: AssetBenchmarkComparisonSerializer,
-    },
+        parameters=[
+            OpenApiParameter(
+                name="benchmark",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=True,
+                description=("Asset ID used as benchmark."),
+            ),
+        ],
+        responses={
+            200: AssetBenchmarkComparisonSerializer,
+        },
     )
     @action(
         detail=True,
@@ -843,73 +663,32 @@ class AssetViewSet(viewsets.ReadOnlyModelViewSet):
         pk=None,
     ):
         asset = self.get_object()
-
-        benchmark_id = (
-            request.query_params.get(
-                "benchmark"
-            )
-        )
-
+        benchmark_id = request.query_params.get("benchmark")
         if not benchmark_id:
             raise DRFValidationError(
-                {
-                    "benchmark": (
-                        "This query parameter "
-                        "is required."
-                    )
-                }
+                {"benchmark": ("This query parameter is required.")}
             )
-
         try:
-            benchmark_id = int(
-                benchmark_id
-            )
+            benchmark_id = int(benchmark_id)
         except ValueError as exc:
             raise DRFValidationError(
-                {
-                    "benchmark": (
-                        "Benchmark must be "
-                        "a valid asset ID."
-                    )
-                }
+                {"benchmark": ("Benchmark must be a valid asset ID.")}
             ) from exc
-
         try:
-            benchmark = Asset.objects.get(
-                id=benchmark_id
-            )
+            benchmark = Asset.objects.get(id=benchmark_id)
         except Asset.DoesNotExist as exc:
             raise DRFValidationError(
-                {
-                    "benchmark": (
-                        "Benchmark asset "
-                        "was not found."
-                    )
-                }
+                {"benchmark": ("Benchmark asset was not found.")}
             ) from exc
-
         try:
-            comparison_data = (
-                get_asset_benchmark_comparison(
-                    asset=asset,
-                    benchmark=benchmark,
-                )
+            comparison_data = get_asset_benchmark_comparison(
+                asset=asset,
+                benchmark=benchmark,
             )
-
         except DjangoValidationError as exc:
-            raise DRFValidationError(
-                exc.messages
-            ) from exc
-
-        serializer = (
-            AssetBenchmarkComparisonSerializer(
-                comparison_data
-            )
-        )
-
-        return Response(
-            serializer.data
-        )
+            raise DRFValidationError(exc.messages) from exc
+        serializer = AssetBenchmarkComparisonSerializer(comparison_data)
+        return Response(serializer.data)
 
 
 @extend_schema_view(
@@ -936,10 +715,35 @@ class PositionViewSet(viewsets.ReadOnlyModelViewSet):
             .select_related("portfolio", "asset")
             .order_by("asset__ticker")
         )
-
         portfolio_id = self.request.query_params.get("portfolio")
-
         if portfolio_id:
             queryset = queryset.filter(portfolio_id=portfolio_id)
+        return queryset
 
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List AI portfolio reports",
+    ),
+    retrieve=extend_schema(
+        summary="Get AI portfolio report",
+    ),
+)
+class AIReportViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = AIReportSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = AIReport.objects.filter(
+            portfolio__user=(self.request.user)
+        ).select_related("portfolio")
+        portfolio_id = self.request.query_params.get("portfolio")
+        if portfolio_id:
+            try:
+                portfolio_id = int(portfolio_id)
+            except ValueError as exc:
+                raise DRFValidationError(
+                    {"portfolio": ("Portfolio must be a valid integer.")}
+                ) from exc
+            queryset = queryset.filter(portfolio_id=portfolio_id)
         return queryset

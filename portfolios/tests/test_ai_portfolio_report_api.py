@@ -1,21 +1,18 @@
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.urls import reverse
-
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from portfolios.ai.openai_client import (
-    AIProviderError,
+from portfolios.models import (
+    AIReport,
+    Portfolio,
 )
-from portfolios.models import Portfolio
 
 
-class AIPortfolioReportAPITests(
-    APITestCase
-):
+class AIPortfolioReportAPITests(APITestCase):
     def setUp(self):
         cache.clear()
 
@@ -31,63 +28,32 @@ class AIPortfolioReportAPITests(
             password="test123",
         )
 
-        self.portfolio = (
-            Portfolio.objects.create(
-                user=self.user,
-                name="AI Portfolio",
-                currency="EUR",
-            )
+        self.portfolio = Portfolio.objects.create(
+            user=self.user,
+            name="AI Portfolio",
+            currency="EUR",
         )
 
-        self.other_portfolio = (
-            Portfolio.objects.create(
-                user=self.other_user,
-                name="Other Portfolio",
-                currency="EUR",
-            )
+        self.other_portfolio = Portfolio.objects.create(
+            user=self.other_user,
+            name="Other Portfolio",
+            currency="EUR",
         )
 
-        self.client.force_authenticate(
-            user=self.user
-        )
+        self.client.force_authenticate(user=self.user)
 
-    @patch(
-        "portfolios.views."
-        "generate_ai_portfolio_report"
-    )
-    def test_generate_ai_portfolio_report(
+    @patch("portfolios.views.generate_ai_portfolio_report_task.delay")
+    def test_create_ai_report_returns_202(
         self,
-        mock_report,
+        mock_delay,
     ):
-        mock_report.return_value = {
-            "portfolio_id": (
-                self.portfolio.id
-            ),
-            "name": self.portfolio.name,
-            "model": "test-model",
-            "executive_summary": "Summary.",
-            "performance_analysis": (
-                "Performance."
-            ),
-            "risk_analysis": "Risk.",
-            "diversification_analysis": (
-                "Diversification."
-            ),
-            "key_observations": [
-                "Observation."
-            ],
-            "limitations": [
-                "Limitation."
-            ],
-            "educational_note": (
-                "Educational only."
-            ),
-            "evidence": [],
-            "unavailable_sections": [],
-        }
+        task_result = Mock()
+        task_result.id = "task-123"
+
+        mock_delay.return_value = task_result
 
         url = reverse(
-            "portfolio-ai-report",
+            "portfolio-ai-reports",
             args=[self.portfolio.id],
         )
 
@@ -95,24 +61,34 @@ class AIPortfolioReportAPITests(
 
         self.assertEqual(
             response.status_code,
-            status.HTTP_200_OK,
+            status.HTTP_202_ACCEPTED,
         )
 
         self.assertEqual(
-            response.data[
-                "executive_summary"
-            ],
-            "Summary.",
+            response.data["status"],
+            AIReport.Status.PENDING,
         )
 
-    def test_cannot_generate_report_for_another_users_portfolio(
+        self.assertEqual(
+            response.data["celery_task_id"],
+            "task-123",
+        )
+
+        ai_report = AIReport.objects.get()
+
+        self.assertEqual(
+            ai_report.portfolio,
+            self.portfolio,
+        )
+
+        mock_delay.assert_called_once_with(ai_report.id)
+
+    def test_cannot_create_report_for_another_users_portfolio(
         self,
     ):
         url = reverse(
-            "portfolio-ai-report",
-            args=[
-                self.other_portfolio.id
-            ],
+            "portfolio-ai-reports",
+            args=[self.other_portfolio.id],
         )
 
         response = self.client.post(url)
@@ -122,15 +98,13 @@ class AIPortfolioReportAPITests(
             status.HTTP_404_NOT_FOUND,
         )
 
-    def test_requires_authentication(
+    def test_create_requires_authentication(
         self,
     ):
-        self.client.force_authenticate(
-            user=None
-        )
+        self.client.force_authenticate(user=None)
 
         url = reverse(
-            "portfolio-ai-report",
+            "portfolio-ai-reports",
             args=[self.portfolio.id],
         )
 
@@ -141,33 +115,92 @@ class AIPortfolioReportAPITests(
             status.HTTP_401_UNAUTHORIZED,
         )
 
-    @patch(
-        "portfolios.views."
-        "generate_ai_portfolio_report"
-    )
-    def test_ai_provider_failure_returns_502(
+    def test_lists_only_users_reports(
         self,
-        mock_report,
     ):
-        mock_report.side_effect = (
-            AIProviderError(
-                "Provider unavailable."
-            )
+        own_report = AIReport.objects.create(
+            portfolio=self.portfolio,
+            model="test-model",
+            status=AIReport.Status.COMPLETED,
+            report={"executive_summary": ("Own report.")},
+            evaluation={"passed": True},
         )
 
-        url = reverse(
-            "portfolio-ai-report",
-            args=[self.portfolio.id],
+        AIReport.objects.create(
+            portfolio=(self.other_portfolio),
+            model="test-model",
+            status=AIReport.Status.COMPLETED,
+            report={"executive_summary": ("Other report.")},
+            evaluation={"passed": True},
         )
 
-        response = self.client.post(url)
+        url = reverse("ai-report-list")
+
+        response = self.client.get(url)
 
         self.assertEqual(
             response.status_code,
-            status.HTTP_502_BAD_GATEWAY,
+            status.HTTP_200_OK,
         )
 
         self.assertEqual(
-            response.data["error"],
-            "ai_service_unavailable",
+            len(response.data),
+            1,
         )
+
+        self.assertEqual(
+            response.data[0]["id"],
+            own_report.id,
+        )
+
+    def test_cannot_retrieve_another_users_report(
+        self,
+    ):
+        other_report = AIReport.objects.create(
+            portfolio=(self.other_portfolio),
+            model="test-model",
+        )
+
+        url = reverse(
+            "ai-report-detail",
+            args=[other_report.id],
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    def test_rejected_report_is_not_exposed(
+        self,
+    ):
+        rejected_report = AIReport.objects.create(
+            portfolio=self.portfolio,
+            model="test-model",
+            status=(AIReport.Status.REJECTED),
+            report={"executive_summary": ("Unsafe output.")},
+            evaluation={"passed": False},
+        )
+
+        url = reverse(
+            "ai-report-detail",
+            args=[rejected_report.id],
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.assertEqual(
+            response.data["status"],
+            AIReport.Status.REJECTED,
+        )
+
+        self.assertIsNone(response.data["report"])
+
+        self.assertFalse(response.data["evaluation_passed"])

@@ -1,6 +1,7 @@
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    AIReportViewSet,
     AssetViewSet,
     PortfolioViewSet,
     PositionViewSet,
@@ -31,6 +32,12 @@ router.register(
     "positions",
     PositionViewSet,
     basename="position",
+)
+
+router.register(
+    "ai-reports",
+    AIReportViewSet,
+    basename="ai-report",
 )
 
 urlpatterns = router.urls

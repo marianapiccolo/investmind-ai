@@ -442,3 +442,54 @@ class PortfolioAIToolCallingTests(SimpleTestCase):
             mock_execute_tool.call_count,
             4,
         )
+
+    def test_conversation_history_is_sent_to_model(
+        self,
+    ):
+        response = SimpleNamespace(
+            id="resp_1",
+            output=[],
+            output_text="Follow-up answer.",
+        )
+
+        self.client.responses.create.return_value = response
+
+        history = [
+            {
+                "role": "user",
+                "content": ("How risky is my portfolio?"),
+            },
+            {
+                "role": "assistant",
+                "content": ("It has moderate risk."),
+            },
+        ]
+
+        answer_portfolio_question(
+            question=("And what about diversification?"),
+            portfolio=self.portfolio,
+            history=history,
+            client=self.client,
+        )
+
+        request = self.client.responses.create.call_args
+
+        input_items = request.kwargs["input"]
+
+        self.assertEqual(
+            input_items,
+            [
+                {
+                    "role": "user",
+                    "content": ("How risky is my portfolio?"),
+                },
+                {
+                    "role": "assistant",
+                    "content": ("It has moderate risk."),
+                },
+                {
+                    "role": "user",
+                    "content": ("And what about diversification?"),
+                },
+            ],
+        )

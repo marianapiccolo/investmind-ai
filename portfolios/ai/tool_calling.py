@@ -103,6 +103,7 @@ def answer_portfolio_question(
     *,
     question: str,
     portfolio: Portfolio,
+    history: list[dict[str, str]] | None = None,
     client: OpenAI | None = None,
 ) -> str:
     """
@@ -123,12 +124,14 @@ def answer_portfolio_question(
 
     tools = get_openai_portfolio_tools()
 
-    input_items: list[Any] = [
+    input_items: list[Any] = list(history or [])
+
+    input_items.append(
         {
             "role": "user",
             "content": question,
         }
-    ]
+    )
 
     response = _create_response(
         client=client,

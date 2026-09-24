@@ -1,7 +1,16 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .models import AIReport, Asset, MarketPrice, Portfolio, Position, Transaction
+from .models import (
+    AIConversation,
+    AIMessage,
+    AIReport,
+    Asset,
+    MarketPrice,
+    Portfolio,
+    Position,
+    Transaction,
+)
 from .services import create_transaction
 
 
@@ -859,3 +868,34 @@ class AIAnalystQuestionSerializer(serializers.Serializer):
 
 class AIAnalystResponseSerializer(serializers.Serializer):
     answer = serializers.CharField()
+
+
+class AIMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIMessage
+        fields = [
+            "id",
+            "role",
+            "content",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class AIConversationSerializer(serializers.ModelSerializer):
+    portfolio_id = serializers.IntegerField(read_only=True)
+    messages = AIMessageSerializer(
+        many=True,
+        read_only=True,
+    )
+
+    class Meta:
+        model = AIConversation
+        fields = [
+            "id",
+            "portfolio_id",
+            "messages",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields

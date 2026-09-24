@@ -15,6 +15,10 @@ from rest_framework.exceptions import (
 )
 from rest_framework.response import Response
 
+from .ai.conversation import (
+    continue_ai_conversation,
+    start_ai_conversation,
+)
 from .ai.openai_client import AIProviderError
 from .ai.tool_calling import (
     InvalidAIToolResponseError,
@@ -37,7 +41,7 @@ from .historical_analytics import (
 )
 from .integrations.alpha_vantage import MarketDataError
 from .market_data import get_cached_market_quote
-from .models import AIReport, Asset, Portfolio, Position, Transaction
+from .models import AIConversation, AIReport, Asset, Portfolio, Position, Transaction
 from .money_weighted_performance import (
     get_portfolio_money_weighted_performance,
 )
@@ -59,6 +63,7 @@ from .risk_adjusted_performance import (
 from .serializers import (
     AIAnalystQuestionSerializer,
     AIAnalystResponseSerializer,
+    AIConversationSerializer,
     AIReportSerializer,
     AssetBenchmarkComparisonSerializer,
     AssetHistoricalAnalyticsSerializer,
@@ -536,6 +541,79 @@ class PortfolioViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        summary="Start an AI portfolio conversation",
+        description=(
+            "Starts a persistent AI conversation for the "
+            "portfolio. The AI can use approved read-only "
+            "portfolio tools to answer the question."
+        ),
+        request=AIAnalystQuestionSerializer,
+        responses={
+            201: AIConversationSerializer,
+        },
+    )
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="ai-conversations",
+        url_name="ai-conversations",
+        throttle_classes=[AIAnalystThrottle],
+    )
+    def create_ai_conversation(
+        self,
+        request,
+        pk=None,
+    ):
+        portfolio = self.get_object()
+
+        request_serializer = AIAnalystQuestionSerializer(data=request.data)
+
+        request_serializer.is_valid(raise_exception=True)
+
+        question = request_serializer.validated_data["question"]
+
+        try:
+            conversation, _answer = start_ai_conversation(
+                portfolio=portfolio,
+                question=question,
+            )
+
+        except AIProviderError:
+            return Response(
+                {"detail": ("AI provider is unavailable.")},
+                status=(status.HTTP_503_SERVICE_UNAVAILABLE),
+            )
+
+        except (
+            InvalidAIToolResponseError,
+            ToolCallingLimitError,
+            UnknownPortfolioToolError,
+            InvalidPortfolioToolArgumentsError,
+        ) as exc:
+            logger.warning(
+                "AI conversation failed: %s",
+                exc,
+            )
+
+            return Response(
+                {"detail": ("AI analysis could not be completed.")},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        except DjangoValidationError as exc:
+            raise DRFValidationError(exc.messages) from exc
+
+        except MarketDataError as exc:
+            raise MarketDataUnavailable(str(exc)) from exc
+
+        response_serializer = AIConversationSerializer(conversation)
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED,
+        )
+
 
 class TransactionViewSet(
     mixins.ListModelMixin,
@@ -838,3 +916,94 @@ class AIReportViewSet(viewsets.ReadOnlyModelViewSet):
                 ) from exc
             queryset = queryset.filter(portfolio_id=portfolio_id)
         return queryset
+
+
+class AIConversationViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    serializer_class = AIConversationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            AIConversation.objects.filter(portfolio__user=self.request.user)
+            .select_related("portfolio")
+            .prefetch_related("messages")
+        )
+
+    @extend_schema(
+        summary="Continue an AI portfolio conversation",
+        description=(
+            "Adds a new user message to an existing "
+            "portfolio conversation and returns the "
+            "updated conversation."
+        ),
+        request=AIAnalystQuestionSerializer,
+        responses={
+            200: AIConversationSerializer,
+        },
+    )
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="messages",
+        url_name="messages",
+        throttle_classes=[AIAnalystThrottle],
+    )
+    def messages(
+        self,
+        request,
+        pk=None,
+    ):
+        conversation = self.get_object()
+
+        request_serializer = AIAnalystQuestionSerializer(data=request.data)
+
+        request_serializer.is_valid(raise_exception=True)
+
+        question = request_serializer.validated_data["question"]
+
+        try:
+            continue_ai_conversation(
+                conversation=conversation,
+                question=question,
+            )
+
+        except AIProviderError:
+            return Response(
+                {"detail": ("AI provider is unavailable.")},
+                status=(status.HTTP_503_SERVICE_UNAVAILABLE),
+            )
+
+        except (
+            InvalidAIToolResponseError,
+            ToolCallingLimitError,
+            UnknownPortfolioToolError,
+            InvalidPortfolioToolArgumentsError,
+        ) as exc:
+            logger.warning(
+                "AI conversation failed: %s",
+                exc,
+            )
+
+            return Response(
+                {"detail": ("AI analysis could not be completed.")},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        except DjangoValidationError as exc:
+            raise DRFValidationError(exc.messages) from exc
+
+        except MarketDataError as exc:
+            raise MarketDataUnavailable(str(exc)) from exc
+
+        conversation = self.get_queryset().get(pk=conversation.pk)
+
+        response_serializer = AIConversationSerializer(conversation)
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_200_OK,
+        )

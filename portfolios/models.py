@@ -223,3 +223,49 @@ class AIReport(models.Model):
 
     def __str__(self):
         return f"AI Report {self.id} - {self.portfolio.name} - {self.status}"
+
+
+class AIConversation(models.Model):
+    portfolio = models.ForeignKey(
+        Portfolio,
+        on_delete=models.CASCADE,
+        related_name="ai_conversations",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [
+            "-updated_at",
+            "-created_at",
+        ]
+
+    def __str__(self):
+        return f"AI Conversation {self.id} - {self.portfolio.name}"
+
+
+class AIMessage(models.Model):
+    class Role(models.TextChoices):
+        USER = "user", "User"
+        ASSISTANT = "assistant", "Assistant"
+
+    conversation = models.ForeignKey(
+        AIConversation,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=Role.choices,
+    )
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = [
+            "created_at",
+            "id",
+        ]
+
+    def __str__(self):
+        return f"{self.role} message {self.id} - conversation {self.conversation_id}"

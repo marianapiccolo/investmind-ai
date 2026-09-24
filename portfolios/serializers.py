@@ -847,3 +847,15 @@ class AIReportSerializer(serializers.ModelSerializer):
             return None
 
         return obj.evaluation.get("passed")
+
+
+class AIAnalystQuestionSerializer(serializers.Serializer):
+    question = serializers.CharField(
+        max_length=2000,
+        allow_blank=False,
+        trim_whitespace=True,
+    )
+
+
+class AIAnalystResponseSerializer(serializers.Serializer):
+    answer = serializers.CharField()

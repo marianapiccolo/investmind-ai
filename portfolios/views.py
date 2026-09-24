@@ -15,6 +15,16 @@ from rest_framework.exceptions import (
 )
 from rest_framework.response import Response
 
+from .ai.openai_client import AIProviderError
+from .ai.tool_calling import (
+    InvalidAIToolResponseError,
+    ToolCallingLimitError,
+    answer_portfolio_question,
+)
+from .ai.tools import (
+    InvalidPortfolioToolArgumentsError,
+    UnknownPortfolioToolError,
+)
 from .analytics import (
     get_portfolio_composition_analytics,
 )
@@ -47,6 +57,8 @@ from .risk_adjusted_performance import (
     get_portfolio_risk_adjusted_performance,
 )
 from .serializers import (
+    AIAnalystQuestionSerializer,
+    AIAnalystResponseSerializer,
     AIReportSerializer,
     AssetBenchmarkComparisonSerializer,
     AssetHistoricalAnalyticsSerializer,
@@ -77,6 +89,7 @@ from .tasks import (
     sync_asset_market_history_task,
 )
 from .throttles import (
+    AIAnalystThrottle,
     AIReportThrottle,
     MarketRefreshThrottle,
 )
@@ -443,6 +456,84 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         return Response(
             serializer.data,
             status=status.HTTP_202_ACCEPTED,
+        )
+
+    @extend_schema(
+        summary="Ask the AI portfolio analyst",
+        description=(
+            "Answers a portfolio question using controlled "
+            "read-only backend tools. Financial calculations "
+            "are performed by deterministic backend services, "
+            "while the AI selects tools and explains results."
+        ),
+        request=AIAnalystQuestionSerializer,
+        responses={
+            200: AIAnalystResponseSerializer,
+        },
+    )
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="ai-analyst",
+        url_name="ai-analyst",
+        throttle_classes=[AIAnalystThrottle],
+    )
+    def ai_analyst(
+        self,
+        request,
+        pk=None,
+    ):
+        portfolio = self.get_object()
+
+        request_serializer = AIAnalystQuestionSerializer(data=request.data)
+
+        request_serializer.is_valid(raise_exception=True)
+
+        question = request_serializer.validated_data["question"]
+
+        try:
+            answer = answer_portfolio_question(
+                question=question,
+                portfolio=portfolio,
+            )
+
+        except AIProviderError:
+            return Response(
+                {"detail": ("AI provider is unavailable.")},
+                status=(status.HTTP_503_SERVICE_UNAVAILABLE),
+            )
+
+        except (
+            InvalidAIToolResponseError,
+            ToolCallingLimitError,
+            UnknownPortfolioToolError,
+            InvalidPortfolioToolArgumentsError,
+        ) as exc:
+            logger.warning(
+                "AI analyst orchestration failed: %s",
+                exc,
+            )
+
+            return Response(
+                {"detail": ("AI analysis could not be completed.")},
+                status=(status.HTTP_502_BAD_GATEWAY),
+            )
+
+        except DjangoValidationError as exc:
+            raise DRFValidationError(exc.messages) from exc
+
+        except MarketDataError as exc:
+            raise MarketDataUnavailable(str(exc)) from exc
+
+        response_serializer = AIAnalystResponseSerializer(
+            {
+                "answer": answer,
+            }
+        )
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_200_OK,
         )
 
 

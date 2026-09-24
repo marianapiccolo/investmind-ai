@@ -156,3 +156,70 @@ class MarketPrice(models.Model):
 
     def __str__(self):
         return f"{self.asset.ticker} {self.date} {self.close}"
+
+
+class AIReport(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        PROCESSING = "PROCESSING", "Processing"
+        COMPLETED = "COMPLETED", "Completed"
+        REJECTED = "REJECTED", "Rejected"
+        FAILED = "FAILED", "Failed"
+
+    portfolio = models.ForeignKey(
+        Portfolio,
+        on_delete=models.CASCADE,
+        related_name="ai_reports",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+
+    model = models.CharField(max_length=100)
+
+    celery_task_id = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    context_snapshot = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    report = models.JSONField(
+        null=True,
+        blank=True,
+    )
+
+    evaluation = models.JSONField(
+        null=True,
+        blank=True,
+    )
+
+    error_message = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"AI Report {self.id} - {self.portfolio.name} - {self.status}"

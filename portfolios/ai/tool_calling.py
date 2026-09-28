@@ -49,6 +49,7 @@ Rules:
 - If required data or knowledge is unavailable, say so.
 - Never claim to have modified the portfolio.
 - Do not request or infer a portfolio ID.
+- If a tool reports that data is unavailable, explain the limitation and do not invent the missing metrics.
 """.strip()
 
 
@@ -173,6 +174,10 @@ def answer_portfolio_question(
         input_items.extend(response.output)
 
         for tool_call in tool_calls:
+            logger.info(
+                "AI analyst executing tool=%s",
+                tool_call.name,
+            )
             arguments = _parse_tool_arguments(tool_call.arguments)
 
             result = execute_portfolio_tool(

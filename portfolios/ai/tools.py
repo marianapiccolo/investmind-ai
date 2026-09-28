@@ -21,6 +21,10 @@ from .retrieval import (
     search_financial_knowledge,
 )
 
+from django.core.exceptions import (
+    ValidationError as DjangoValidationError,
+)
+
 MAX_KNOWLEDGE_QUERY_LENGTH = 500
 
 RAG_SECURITY_NOTICE = (
@@ -367,7 +371,17 @@ def execute_portfolio_tool(
         arguments=arguments,
     )
 
-    return tool.handler(
-        portfolio,
-        arguments,
-    )
+    try:
+        return tool.handler(
+            portfolio,
+            arguments,
+        )
+
+    except DjangoValidationError as exc:
+        return {
+            "available": False,
+            "reason": " ".join(
+                str(message)
+                for message in exc.messages
+            ),
+        }

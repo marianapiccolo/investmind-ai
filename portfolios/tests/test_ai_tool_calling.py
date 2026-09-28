@@ -19,30 +19,78 @@ class PortfolioAIToolCallingTests(SimpleTestCase):
     def test_openai_tool_definitions_are_strict(
         self,
     ):
+    
         tools = get_openai_portfolio_tools()
 
         self.assertEqual(
             len(tools),
-            4,
+            5,
         )
 
-        for tool in tools:
-            self.assertEqual(
-                tool["type"],
-                "function",
+        tools_by_name = {
+            tool["name"]: tool
+            for tool in tools
+        }
+
+        for name in {
+            "get_portfolio_performance",
+            "get_portfolio_risk",
+            "get_portfolio_composition",
+            "get_portfolio_diversification",
+        }:
+            parameters = (
+                tools_by_name[name][
+                    "parameters"
+                ]
             )
 
-            self.assertTrue(tool["strict"])
-
             self.assertEqual(
-                tool["parameters"]["properties"],
+                parameters["properties"],
                 {},
             )
 
             self.assertEqual(
-                tool["parameters"]["required"],
+                parameters["required"],
                 [],
             )
+
+            self.assertFalse(
+                parameters[
+                    "additionalProperties"
+                ]
+            )
+
+            self.assertTrue(
+                tools_by_name[name]["strict"]
+            )
+
+        knowledge_tool = tools_by_name[
+            "search_financial_knowledge"
+        ]
+
+        knowledge_parameters = (
+            knowledge_tool["parameters"]
+        )
+
+        self.assertIn(
+            "query",
+            knowledge_parameters["properties"],
+        )
+
+        self.assertEqual(
+            knowledge_parameters["required"],
+            ["query"],
+        )
+
+        self.assertFalse(
+            knowledge_parameters[
+                "additionalProperties"
+            ]
+        )
+
+        self.assertTrue(
+            knowledge_tool["strict"]
+        )
 
     def test_model_can_answer_without_tool(
         self,
@@ -493,3 +541,73 @@ class PortfolioAIToolCallingTests(SimpleTestCase):
                 },
             ],
         )
+
+@patch(
+    "portfolios.ai.tool_calling."
+    "execute_portfolio_tool"
+)
+def test_forwards_knowledge_tool_arguments(
+    self,
+    mock_execute,
+):
+    first_response = SimpleNamespace(
+        output=[
+            SimpleNamespace(
+                type="function_call",
+                name=(
+                    "search_financial_knowledge"
+                ),
+                arguments=(
+                    '{"query": '
+                    '"maximum drawdown"}'
+                ),
+                call_id="call_1",
+            )
+        ],
+        output_text="",
+    )
+
+    second_response = SimpleNamespace(
+        output=[],
+        output_text=(
+            "Maximum drawdown measures "
+            "peak-to-trough decline."
+        ),
+    )
+
+    self.client.responses.create.side_effect = [
+        first_response,
+        second_response,
+    ]
+
+    mock_execute.return_value = {
+        "query": "maximum drawdown",
+        "results": [],
+    }
+
+    answer = answer_portfolio_question(
+        question=(
+            "What does maximum "
+            "drawdown mean?"
+        ),
+        portfolio=self.portfolio,
+        client=self.client,
+    )
+
+    self.assertEqual(
+        answer,
+        (
+            "Maximum drawdown measures "
+            "peak-to-trough decline."
+        ),
+    )
+
+    mock_execute.assert_called_once_with(
+        tool_name=(
+            "search_financial_knowledge"
+        ),
+        portfolio=self.portfolio,
+        arguments={
+            "query": "maximum drawdown",
+        },
+    )

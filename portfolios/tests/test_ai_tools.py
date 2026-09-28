@@ -28,6 +28,7 @@ class PortfolioAIToolTests(SimpleTestCase):
                 "get_portfolio_risk",
                 "get_portfolio_composition",
                 "get_portfolio_diversification",
+                "search_financial_knowledge",
             },
         )
 

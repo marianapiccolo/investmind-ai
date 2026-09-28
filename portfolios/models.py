@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.db import models
-
+from pgvector.django import VectorField
 
 class Portfolio(models.Model):
     name = models.CharField(max_length=100)
@@ -269,3 +269,95 @@ class AIMessage(models.Model):
 
     def __str__(self):
         return f"{self.role} message {self.id} - conversation {self.conversation_id}"
+
+class KnowledgeDocument(models.Model):
+    title = models.CharField(
+        max_length=255
+    )
+    slug = models.SlugField(
+        max_length=255,
+        unique=True,
+    )
+    source_path = models.CharField(
+        max_length=500,
+        unique=True,
+    )
+    content = models.TextField()
+    content_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+    )
+    is_active = models.BooleanField(
+        default=True
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+    class Meta:
+        ordering = [
+            "title",
+        ]
+
+    def __str__(self):
+        return self.title
+
+
+class KnowledgeChunk(models.Model):
+    document = models.ForeignKey(
+        KnowledgeDocument,
+        on_delete=models.CASCADE,
+        related_name="chunks",
+    )
+    chunk_index = models.PositiveIntegerField()
+    section_title = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+    content = models.TextField()
+    token_count = models.PositiveIntegerField(
+        default=0
+    )
+    embedding = VectorField(
+        dimensions=1536,
+        null=True,
+        blank=True,
+    )
+    embedding_model = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+    class Meta:
+        ordering = [
+            "document_id",
+            "chunk_index",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "document",
+                    "chunk_index",
+                ],
+                name=(
+                    "unique_knowledge_chunk_"
+                    "document_index"
+                ),
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.document.title} - "
+            f"chunk {self.chunk_index}"
+        )

@@ -11,6 +11,7 @@ from portfolios.ai.tools import (
     get_portfolio_tool_specs,
 )
 
+from django.core.exceptions import ValidationError
 
 class PortfolioAIToolTests(SimpleTestCase):
     def setUp(self):
@@ -28,6 +29,7 @@ class PortfolioAIToolTests(SimpleTestCase):
                 "get_portfolio_risk",
                 "get_portfolio_composition",
                 "get_portfolio_diversification",
+                "search_financial_knowledge",
             },
         )
 
@@ -157,3 +159,38 @@ class PortfolioAIToolTests(SimpleTestCase):
                     "portfolio_id": 999,
                 },
             )
+
+    @patch(
+    "portfolios.ai.tools."
+    "get_portfolio_diversification_analytics"
+    )
+    def test_domain_validation_returns_unavailable_result(
+        self,
+        mock_diversification,
+    ):
+        mock_diversification.side_effect = (
+            ValidationError(
+                "At least two active assets are "
+                "required for diversification analytics."
+            )
+        )
+
+        result = execute_portfolio_tool(
+            tool_name=(
+                "get_portfolio_diversification"
+            ),
+            portfolio=self.portfolio,
+            arguments={},
+        )
+
+        self.assertEqual(
+            result,
+            {
+                "available": False,
+                "reason": (
+                    "At least two active assets are "
+                    "required for diversification "
+                    "analytics."
+                ),
+            },
+        )

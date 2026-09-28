@@ -304,3 +304,8 @@ OPENAI_MAX_OUTPUT_TOKENS = int(
         "1200",
     )
 )
+
+OPENAI_EMBEDDING_MODEL = os.getenv(
+    "OPENAI_EMBEDDING_MODEL",
+    "text-embedding-3-small",
+)

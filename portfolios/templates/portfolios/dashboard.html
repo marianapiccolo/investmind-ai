@@ -1,0 +1,185 @@
+{% extends "base.html" %} {% block title %} Dashboard | InvestMind AI
+{%endblock%} {% block content %}
+
+<section class="page-header">
+  <div>
+    <span class="page-eyebrow"> PORTFOLIO OVERVIEW </span>
+
+    <h1 class="page-title">Dashboard</h1>
+
+    <p class="page-description">
+      Monitor your portfolio, performance, risk and investment insights.
+    </p>
+  </div>
+
+  <div class="page-header-actions">
+    <button class="btn btn-secondary-finance" type="button">
+      <i class="bi bi-arrow-clockwise"></i>
+      Refresh
+    </button>
+
+    <button class="btn btn-primary-finance" type="button">
+      <i class="bi bi-plus-lg"></i>
+      Add transaction
+    </button>
+  </div>
+</section>
+
+<section class="portfolio-heading">
+  <div>
+    <span class="section-label"> SELECTED PORTFOLIO </span>
+
+    <h2>My Portfolio</h2>
+  </div>
+
+  <button class="portfolio-selector" type="button">
+    <span>My Portfolio</span>
+    <i class="bi bi-chevron-down"></i>
+  </button>
+</section>
+
+<section class="metric-grid">
+  <article class="metric-card">
+    <div class="metric-card-header">
+      <span class="metric-label"> Portfolio Value </span>
+
+      <span class="metric-icon">
+        <i class="bi bi-wallet2"></i>
+      </span>
+    </div>
+
+    <div class="metric-value">—</div>
+
+    <span class="metric-helper"> Current market value </span>
+  </article>
+
+  <article class="metric-card">
+    <div class="metric-card-header">
+      <span class="metric-label"> Total Return </span>
+
+      <span class="metric-icon">
+        <i class="bi bi-graph-up-arrow"></i>
+      </span>
+    </div>
+
+    <div class="metric-value">—</div>
+
+    <span class="metric-helper"> Since inception </span>
+  </article>
+
+  <article class="metric-card">
+    <div class="metric-card-header">
+      <span class="metric-label"> Volatility </span>
+
+      <span class="metric-icon">
+        <i class="bi bi-activity"></i>
+      </span>
+    </div>
+
+    <div class="metric-value">—</div>
+
+    <span class="metric-helper"> Historical annualized risk </span>
+  </article>
+
+  <article class="metric-card">
+    <div class="metric-card-header">
+      <span class="metric-label"> Max Drawdown </span>
+
+      <span class="metric-icon">
+        <i class="bi bi-arrow-down-right"></i>
+      </span>
+    </div>
+
+    <div class="metric-value">—</div>
+
+    <span class="metric-helper"> Largest peak-to-trough decline </span>
+  </article>
+</section>
+
+<section class="dashboard-grid">
+  <article class="dashboard-card dashboard-card-large">
+    <div class="card-heading">
+      <div>
+        <span class="section-label"> PERFORMANCE </span>
+
+        <h3>Portfolio Performance</h3>
+      </div>
+
+      <button class="card-action" type="button">
+        1Y
+        <i class="bi bi-chevron-down"></i>
+      </button>
+    </div>
+
+    <div class="chart-placeholder">
+      <i class="bi bi-graph-up"></i>
+
+      <span> Performance chart </span>
+
+      <small> Chart.js will be connected to portfolio analytics. </small>
+    </div>
+  </article>
+
+  <article class="dashboard-card">
+    <div class="card-heading">
+      <div>
+        <span class="section-label"> ALLOCATION </span>
+
+        <h3>Portfolio Composition</h3>
+      </div>
+    </div>
+
+    <div class="chart-placeholder chart-placeholder-small">
+      <div class="allocation-ring"></div>
+
+      <span> Asset allocation </span>
+    </div>
+  </article>
+</section>
+
+<section class="dashboard-grid bottom-grid">
+  <article class="dashboard-card">
+    <div class="card-heading">
+      <div>
+        <span class="section-label"> RECENT ACTIVITY </span>
+
+        <h3>Transactions</h3>
+      </div>
+
+      <a href="#" class="text-action"> View all </a>
+    </div>
+
+    <div class="empty-state">
+      <i class="bi bi-arrow-left-right"></i>
+
+      <strong> Transaction activity </strong>
+
+      <span> Your latest transactions will appear here. </span>
+    </div>
+  </article>
+
+  <article class="dashboard-card ai-preview-card">
+    <div class="ai-preview-icon">
+      <i class="bi bi-stars"></i>
+    </div>
+
+    <div class="ai-preview-content">
+      <span class="section-label"> INVESTMIND AI </span>
+
+      <h3>Ask your portfolio</h3>
+
+      <p>
+        Explore your performance, risk and diversification through the AI
+        Analyst.
+      </p>
+
+      <button class="btn btn-ai-finance" type="button">
+        Open AI Analyst
+
+        <i class="bi bi-arrow-right"></i>
+      </button>
+    </div>
+  </article>
+</section>
+
+{% endblock %}

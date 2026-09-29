@@ -13,6 +13,7 @@ from rest_framework_simplejwt.views import (
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("", include("portfolios.web_urls")),
     path("api/", include("portfolios.urls")),
     path(
         "api/auth/token/",

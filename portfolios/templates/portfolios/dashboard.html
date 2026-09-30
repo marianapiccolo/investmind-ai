@@ -1,185 +1,489 @@
-{% extends "base.html" %} {% block title %} Dashboard | InvestMind AI
-{%endblock%} {% block content %}
+{% extends "base.html" %}
+
+
+{% block title %}
+Dashboard | InvestMind AI
+{% endblock %}
+
+
+{% block content %}
 
 <section class="page-header">
-  <div>
-    <span class="page-eyebrow"> PORTFOLIO OVERVIEW </span>
 
-    <h1 class="page-title">Dashboard</h1>
+    <div>
+        <span class="page-eyebrow">
+            PORTFOLIO OVERVIEW
+        </span>
 
-    <p class="page-description">
-      Monitor your portfolio, performance, risk and investment insights.
-    </p>
-  </div>
+        <h1 class="page-title">
+            Dashboard
+        </h1>
 
-  <div class="page-header-actions">
-    <button class="btn btn-secondary-finance" type="button">
-      <i class="bi bi-arrow-clockwise"></i>
-      Refresh
-    </button>
+        <p class="page-description">
+            Monitor your portfolio, performance,
+            risk and investment insights.
+        </p>
+    </div>
 
-    <button class="btn btn-primary-finance" type="button">
-      <i class="bi bi-plus-lg"></i>
-      Add transaction
-    </button>
-  </div>
+    <div class="page-header-actions">
+
+        <button
+            class="btn btn-secondary-finance"
+            type="button"
+        >
+            <i class="bi bi-arrow-clockwise"></i>
+            Refresh
+        </button>
+
+        <button
+            class="btn btn-primary-finance"
+            type="button"
+        >
+            <i class="bi bi-plus-lg"></i>
+            Add transaction
+        </button>
+
+    </div>
+
 </section>
+
+
+{% if selected_portfolio %}
 
 <section class="portfolio-heading">
-  <div>
-    <span class="section-label"> SELECTED PORTFOLIO </span>
 
-    <h2>My Portfolio</h2>
-  </div>
+    <div>
+        <span class="section-label">
+            SELECTED PORTFOLIO
+        </span>
 
-  <button class="portfolio-selector" type="button">
-    <span>My Portfolio</span>
-    <i class="bi bi-chevron-down"></i>
-  </button>
+        <h2>
+            {{ selected_portfolio.name }}
+        </h2>
+    </div>
+
+
+    <form
+        method="get"
+        class="portfolio-selector-form"
+    >
+        <select
+            name="portfolio"
+            class="portfolio-selector"
+            aria-label="Select portfolio"
+            onchange="this.form.submit()"
+        >
+
+            {% for portfolio in portfolios %}
+
+                <option
+                    value="{{ portfolio.id }}"
+                    {% if portfolio.id == selected_portfolio.id %}
+                        selected
+                    {% endif %}
+                >
+                    {{ portfolio.name }}
+                </option>
+
+            {% endfor %}
+
+        </select>
+    </form>
+
 </section>
+
 
 <section class="metric-grid">
-  <article class="metric-card">
-    <div class="metric-card-header">
-      <span class="metric-label"> Portfolio Value </span>
 
-      <span class="metric-icon">
-        <i class="bi bi-wallet2"></i>
-      </span>
-    </div>
+    <article class="metric-card">
 
-    <div class="metric-value">—</div>
+        <div class="metric-card-header">
 
-    <span class="metric-helper"> Current market value </span>
-  </article>
+            <span class="metric-label">
+                Portfolio Value
+            </span>
 
-  <article class="metric-card">
-    <div class="metric-card-header">
-      <span class="metric-label"> Total Return </span>
+            <span class="metric-icon">
+                <i class="bi bi-wallet2"></i>
+            </span>
 
-      <span class="metric-icon">
-        <i class="bi bi-graph-up-arrow"></i>
-      </span>
-    </div>
+        </div>
 
-    <div class="metric-value">—</div>
 
-    <span class="metric-helper"> Since inception </span>
-  </article>
+        {% if market_summary.available %}
 
-  <article class="metric-card">
-    <div class="metric-card-header">
-      <span class="metric-label"> Volatility </span>
+            <div class="metric-value">
+                {{ currency_symbol }}
+                {{ market_summary.data.total_market_value|floatformat:2 }}
+            </div>
 
-      <span class="metric-icon">
-        <i class="bi bi-activity"></i>
-      </span>
-    </div>
+            <span class="metric-helper">
+                {{ currency_symbol }}
+                {{ market_summary.data.total_invested|floatformat:2 }}
+                invested
+            </span>
 
-    <div class="metric-value">—</div>
+        {% else %}
 
-    <span class="metric-helper"> Historical annualized risk </span>
-  </article>
+            <div class="metric-value metric-unavailable">
+                Unavailable
+            </div>
 
-  <article class="metric-card">
-    <div class="metric-card-header">
-      <span class="metric-label"> Max Drawdown </span>
+            <span
+                class="metric-helper"
+                title="{{ market_summary.reason }}"
+            >
+                Market data unavailable
+            </span>
 
-      <span class="metric-icon">
-        <i class="bi bi-arrow-down-right"></i>
-      </span>
-    </div>
+        {% endif %}
 
-    <div class="metric-value">—</div>
+    </article>
 
-    <span class="metric-helper"> Largest peak-to-trough decline </span>
-  </article>
+
+    <article class="metric-card">
+
+        <div class="metric-card-header">
+
+            <span class="metric-label">
+                Unrealized Return
+            </span>
+
+            <span class="metric-icon">
+                <i class="bi bi-graph-up-arrow"></i>
+            </span>
+
+        </div>
+
+
+        {% if market_summary.available %}
+
+            <div
+                class="
+                    metric-value
+                    {% if market_summary.data.total_return_percentage > 0 %}
+                        metric-positive
+                    {% elif market_summary.data.total_return_percentage < 0 %}
+                        metric-negative
+                    {% endif %}
+                "
+            >
+                {% if market_summary.data.total_return_percentage > 0 %}
+                    +
+                {% endif %}
+                {{ market_summary.data.total_return_percentage|floatformat:2 }}%
+            </div>
+
+            <span class="metric-helper">
+                {% if market_summary.data.total_unrealized_profit_loss > 0 %}
+                    +
+                {% endif %}
+                {{ currency_symbol }}
+                {{ market_summary.data.total_unrealized_profit_loss|floatformat:2 }}
+                unrealized P/L
+            </span>
+
+        {% else %}
+
+            <div class="metric-value metric-unavailable">
+                Unavailable
+            </div>
+
+            <span class="metric-helper">
+                Current return unavailable
+            </span>
+
+        {% endif %}
+
+    </article>
+
+
+    <article class="metric-card">
+
+        <div class="metric-card-header">
+
+            <span class="metric-label">
+                Volatility
+            </span>
+
+            <span class="metric-icon">
+                <i class="bi bi-activity"></i>
+            </span>
+
+        </div>
+
+
+        {% if risk.available %}
+
+            <div class="metric-value">
+                {{ risk.data.annualized_volatility_percentage|floatformat:2 }}%
+            </div>
+
+            <span class="metric-helper">
+                {{ risk.data.return_observations }}
+                historical return observations
+            </span>
+
+        {% else %}
+
+            <div class="metric-value metric-unavailable">
+                Unavailable
+            </div>
+
+            <span
+                class="metric-helper"
+                title="{{ risk.reason }}"
+            >
+                Insufficient historical data
+            </span>
+
+        {% endif %}
+
+    </article>
+
+
+    <article class="metric-card">
+
+        <div class="metric-card-header">
+
+            <span class="metric-label">
+                Max Drawdown
+            </span>
+
+            <span class="metric-icon">
+                <i class="bi bi-arrow-down-right"></i>
+            </span>
+
+        </div>
+
+
+        {% if risk.available %}
+
+            <div class="metric-value metric-negative">
+                {{ risk.data.maximum_drawdown_percentage|floatformat:2 }}%
+            </div>
+
+            <span class="metric-helper">
+                Largest historical
+                peak-to-trough decline
+            </span>
+
+        {% else %}
+
+            <div class="metric-value metric-unavailable">
+                Unavailable
+            </div>
+
+            <span
+                class="metric-helper"
+                title="{{ risk.reason }}"
+            >
+                Drawdown unavailable
+            </span>
+
+        {% endif %}
+
+    </article>
+
 </section>
+
 
 <section class="dashboard-grid">
-  <article class="dashboard-card dashboard-card-large">
-    <div class="card-heading">
-      <div>
-        <span class="section-label"> PERFORMANCE </span>
 
-        <h3>Portfolio Performance</h3>
-      </div>
+    <article
+        class="
+            dashboard-card
+            dashboard-card-large
+        "
+    >
 
-      <button class="card-action" type="button">
-        1Y
-        <i class="bi bi-chevron-down"></i>
-      </button>
-    </div>
+        <div class="card-heading">
 
-    <div class="chart-placeholder">
-      <i class="bi bi-graph-up"></i>
+            <div>
+                <span class="section-label">
+                    PERFORMANCE
+                </span>
 
-      <span> Performance chart </span>
+                <h3>
+                    Portfolio Performance
+                </h3>
+            </div>
 
-      <small> Chart.js will be connected to portfolio analytics. </small>
-    </div>
-  </article>
+            <button
+                class="card-action"
+                type="button"
+            >
+                1Y
+                <i class="bi bi-chevron-down"></i>
+            </button>
 
-  <article class="dashboard-card">
-    <div class="card-heading">
-      <div>
-        <span class="section-label"> ALLOCATION </span>
+        </div>
 
-        <h3>Portfolio Composition</h3>
-      </div>
-    </div>
+        <div class="chart-placeholder">
 
-    <div class="chart-placeholder chart-placeholder-small">
-      <div class="allocation-ring"></div>
+            <i class="bi bi-graph-up"></i>
 
-      <span> Asset allocation </span>
-    </div>
-  </article>
+            <span>
+                Performance chart
+            </span>
+
+            <small>
+                Historical TWR will be
+                visualized here.
+            </small>
+
+        </div>
+
+    </article>
+
+
+    <article class="dashboard-card">
+
+        <div class="card-heading">
+
+            <div>
+                <span class="section-label">
+                    ALLOCATION
+                </span>
+
+                <h3>
+                    Portfolio Composition
+                </h3>
+            </div>
+
+        </div>
+
+        <div
+            class="
+                chart-placeholder
+                chart-placeholder-small
+            "
+        >
+
+            <div class="allocation-ring"></div>
+
+            <span>
+                Asset allocation
+            </span>
+
+        </div>
+
+    </article>
+
 </section>
 
-<section class="dashboard-grid bottom-grid">
-  <article class="dashboard-card">
-    <div class="card-heading">
-      <div>
-        <span class="section-label"> RECENT ACTIVITY </span>
 
-        <h3>Transactions</h3>
-      </div>
+<section
+    class="
+        dashboard-grid
+        bottom-grid
+    "
+>
 
-      <a href="#" class="text-action"> View all </a>
-    </div>
+    <article class="dashboard-card">
+
+        <div class="card-heading">
+
+            <div>
+                <span class="section-label">
+                    RECENT ACTIVITY
+                </span>
+
+                <h3>
+                    Transactions
+                </h3>
+            </div>
+
+            <a
+                href="#"
+                class="text-action"
+            >
+                View all
+            </a>
+
+        </div>
+
+        <div class="empty-state">
+
+            <i class="bi bi-arrow-left-right"></i>
+
+            <strong>
+                Transaction activity
+            </strong>
+
+            <span>
+                Your latest transactions will
+                appear here.
+            </span>
+
+        </div>
+
+    </article>
+
+
+    <article
+        class="
+            dashboard-card
+            ai-preview-card
+        "
+    >
+
+        <div class="ai-preview-icon">
+            <i class="bi bi-stars"></i>
+        </div>
+
+        <div class="ai-preview-content">
+
+            <span class="section-label">
+                INVESTMIND AI
+            </span>
+
+            <h3>
+                Ask your portfolio
+            </h3>
+
+            <p>
+                Explore your performance, risk and
+                diversification through the AI Analyst.
+            </p>
+
+            <button
+                class="btn btn-ai-finance"
+                type="button"
+            >
+                Open AI Analyst
+
+                <i class="bi bi-arrow-right"></i>
+            </button>
+
+        </div>
+
+    </article>
+
+</section>
+
+
+{% else %}
+
+<section class="dashboard-card no-portfolio-state">
 
     <div class="empty-state">
-      <i class="bi bi-arrow-left-right"></i>
 
-      <strong> Transaction activity </strong>
+        <i class="bi bi-briefcase"></i>
 
-      <span> Your latest transactions will appear here. </span>
+        <strong>
+            No portfolios yet
+        </strong>
+
+        <span>
+            Create your first portfolio to start
+            tracking investments.
+        </span>
+
     </div>
-  </article>
 
-  <article class="dashboard-card ai-preview-card">
-    <div class="ai-preview-icon">
-      <i class="bi bi-stars"></i>
-    </div>
-
-    <div class="ai-preview-content">
-      <span class="section-label"> INVESTMIND AI </span>
-
-      <h3>Ask your portfolio</h3>
-
-      <p>
-        Explore your performance, risk and diversification through the AI
-        Analyst.
-      </p>
-
-      <button class="btn btn-ai-finance" type="button">
-        Open AI Analyst
-
-        <i class="bi bi-arrow-right"></i>
-      </button>
-    </div>
-  </article>
 </section>
+
+{% endif %}
 
 {% endblock %}

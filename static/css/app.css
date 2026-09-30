@@ -1359,3 +1359,54 @@ a {
 
   background: #f3f5f7;
 }
+
+.portfolio-selector-form {
+  margin: 0;
+}
+
+select.portfolio-selector {
+  appearance: none;
+
+  cursor: pointer;
+
+  padding-right: 34px;
+
+  background-image: linear-gradient(
+      45deg,
+      transparent 50%,
+      var(--finance-text-soft) 50%
+    ),
+    linear-gradient(135deg, var(--finance-text-soft) 50%, transparent 50%);
+
+  background-position: calc(100% - 16px) 50%, calc(100% - 12px) 50%;
+
+  background-size: 4px 4px, 4px 4px;
+
+  background-repeat: no-repeat;
+}
+
+select.portfolio-selector:focus {
+  border-color: #8293a6;
+
+  outline: none;
+
+  box-shadow: 0 0 0 3px rgba(22, 50, 79, 0.08);
+}
+
+.metric-positive {
+  color: var(--finance-green);
+}
+
+.metric-negative {
+  color: var(--finance-red);
+}
+
+.metric-unavailable {
+  color: var(--finance-text-soft);
+
+  font-size: 18px;
+}
+
+.no-portfolio-state {
+  min-height: 360px;
+}

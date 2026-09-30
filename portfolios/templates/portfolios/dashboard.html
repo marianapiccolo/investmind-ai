@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-
+{% load static %}
 
 {% block title %}
 Dashboard | InvestMind AI
@@ -319,20 +319,57 @@ Dashboard | InvestMind AI
 
         </div>
 
+        {% if performance_chart %}
+
+        <div class="chart-container chart-container-line">
+
+            <canvas
+                id="performanceChart"
+                aria-label="Portfolio performance chart"
+            ></canvas>
+
+        </div>
+
+        <div class="chart-summary">
+
+            <span>
+                Time-Weighted Return
+            </span>
+
+            <strong
+                class="
+                    {% if performance.data.time_weighted_return_percentage > 0 %}
+                        metric-positive
+                    {% elif performance.data.time_weighted_return_percentage < 0 %}
+                        metric-negative
+                    {% endif %}
+                "
+            >
+                {% if performance.data.time_weighted_return_percentage > 0 %}
+                    +
+                {% endif %}
+                {{ performance.data.time_weighted_return_percentage|floatformat:2 }}%
+            </strong>
+
+        </div>
+
+    {% else %}
+
         <div class="chart-placeholder">
 
             <i class="bi bi-graph-up"></i>
 
             <span>
-                Performance chart
+                Performance unavailable
             </span>
 
             <small>
-                Historical TWR will be
-                visualized here.
+                Insufficient historical data.
             </small>
 
         </div>
+
+    {% endif %}
 
     </article>
 
@@ -353,20 +390,67 @@ Dashboard | InvestMind AI
 
         </div>
 
-        <div
-            class="
-                chart-placeholder
-                chart-placeholder-small
-            "
-        >
+        {% if composition_chart %}
 
-            <div class="allocation-ring"></div>
+        <div class="chart-container chart-container-doughnut">
 
-            <span>
-                Asset allocation
-            </span>
+            <canvas
+                id="compositionChart"
+                aria-label="Portfolio composition chart"
+            ></canvas>
 
         </div>
+
+        {% if market_summary.available %}
+
+            <div class="composition-legend">
+
+                {% for position in market_summary.data.positions %}
+
+                    <div class="composition-row">
+
+                        <div class="composition-position">
+
+                            <strong>
+                                {{ position.ticker }}
+                            </strong>
+
+                            <span>
+                                {{ position.asset_name }}
+                            </span>
+
+                        </div>
+
+                        <span class="composition-weight">
+                            {{ position.allocation_percentage|floatformat:2 }}%
+                        </span>
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% endif %}
+
+{% else %}
+
+    <div
+        class="
+            chart-placeholder
+            chart-placeholder-small
+        "
+    >
+
+        <i class="bi bi-pie-chart"></i>
+
+        <span>
+            Allocation unavailable
+        </span>
+
+    </div>
+
+{% endif %}
 
     </article>
 
@@ -485,5 +569,25 @@ Dashboard | InvestMind AI
 </section>
 
 {% endif %}
+
+{% if performance_chart %}
+    {{ performance_chart|json_script:"performance-chart-data" }}
+{% endif %}
+
+{% if composition_chart %}
+    {{ composition_chart|json_script:"composition-chart-data" }}
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script
+    src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+></script>
+
+<script
+    src="{% static 'js/dashboard.js' %}"
+></script>
 
 {% endblock %}

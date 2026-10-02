@@ -15,7 +15,6 @@ from .services import (
     get_portfolio_market_summary,
 )
 
-
 CURRENCY_SYMBOLS = {
     "EUR": "€",
     "USD": "$",
@@ -28,19 +27,14 @@ def _get_error_message(exc):
         exc,
         ValidationError,
     ):
-        return " ".join(
-            str(message)
-            for message in exc.messages
-        )
+        return " ".join(str(message) for message in exc.messages)
 
     return str(exc)
 
 
 def _load_market_summary(portfolio):
     try:
-        data = get_portfolio_market_summary(
-            portfolio=portfolio
-        )
+        data = get_portfolio_market_summary(portfolio=portfolio)
 
     except (
         ValidationError,
@@ -61,9 +55,7 @@ def _load_market_summary(portfolio):
 
 def _load_performance(portfolio):
     try:
-        data = get_portfolio_performance(
-            portfolio=portfolio
-        )
+        data = get_portfolio_performance(portfolio=portfolio)
 
     except ValidationError as exc:
         return {
@@ -81,9 +73,7 @@ def _load_performance(portfolio):
 
 def _load_risk_analytics(portfolio):
     try:
-        data = get_portfolio_risk_analytics(
-            portfolio=portfolio
-        )
+        data = get_portfolio_risk_analytics(portfolio=portfolio)
 
     except ValidationError as exc:
         return {
@@ -108,18 +98,8 @@ def _build_performance_chart(
     series = performance["data"]["series"]
 
     return {
-        "labels": [
-            point["date"].isoformat()
-            for point in series
-        ],
-        "values": [
-            float(
-                point[
-                    "cumulative_twr_percentage"
-                ]
-            )
-            for point in series
-        ],
+        "labels": [point["date"].isoformat() for point in series],
+        "values": [float(point["cumulative_twr_percentage"]) for point in series],
     }
 
 
@@ -129,26 +109,14 @@ def _build_composition_chart(
     if not market_summary["available"]:
         return None
 
-    positions = (
-        market_summary["data"]["positions"]
-    )
+    positions = market_summary["data"]["positions"]
 
     if not positions:
         return None
 
     return {
-        "labels": [
-            position["ticker"]
-            for position in positions
-        ],
-        "values": [
-            float(
-                position[
-                    "allocation_percentage"
-                ]
-            )
-            for position in positions
-        ],
+        "labels": [position["ticker"] for position in positions],
+        "values": [float(position["allocation_percentage"]) for position in positions],
     }
 
 
@@ -156,9 +124,7 @@ def _build_recent_transactions(
     portfolio,
 ):
     transactions = (
-        Transaction.objects.filter(
-            portfolio=portfolio
-        )
+        Transaction.objects.filter(portfolio=portfolio)
         .select_related("asset")
         .order_by(
             "-transaction_date",
@@ -169,31 +135,14 @@ def _build_recent_transactions(
     return [
         {
             "id": transaction.id,
-            "transaction_type": (
-                transaction.transaction_type
-            ),
-            "ticker": (
-                transaction.asset.ticker
-            ),
-            "asset_name": (
-                transaction.asset.name
-            ),
-            "quantity": (
-                transaction.quantity
-            ),
-            "price": (
-                transaction.price
-            ),
-            "gross_amount": (
-                transaction.quantity
-                * transaction.price
-            ),
-            "transaction_date": (
-                transaction.transaction_date
-            ),
-            "currency": (
-                transaction.asset.currency
-            ),
+            "transaction_type": (transaction.transaction_type),
+            "ticker": (transaction.asset.ticker),
+            "asset_name": (transaction.asset.name),
+            "quantity": (transaction.quantity),
+            "price": (transaction.price),
+            "gross_amount": (transaction.quantity * transaction.price),
+            "transaction_date": (transaction.transaction_date),
+            "currency": (transaction.asset.currency),
         }
         for transaction in transactions
     ]
@@ -204,25 +153,19 @@ def _get_selected_portfolio(
     request,
     portfolios,
 ):
-    portfolio_id = request.GET.get(
-        "portfolio"
-    )
+    portfolio_id = request.GET.get("portfolio")
 
     if portfolio_id is None:
         return portfolios.first()
 
     try:
-        portfolio_id = int(
-            portfolio_id
-        )
+        portfolio_id = int(portfolio_id)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
-        raise Http404(
-            "Portfolio not found."
-        ) from exc
+        raise Http404("Portfolio not found.") from exc
 
     return get_object_or_404(
         portfolios,
@@ -232,25 +175,16 @@ def _get_selected_portfolio(
 
 @login_required
 def dashboard(request):
-    portfolios = (
-        Portfolio.objects.filter(
-            user=request.user
-        )
-        .order_by("-created_at")
-    )
+    portfolios = Portfolio.objects.filter(user=request.user).order_by("-created_at")
 
-    selected_portfolio = (
-        _get_selected_portfolio(
-            request=request,
-            portfolios=portfolios,
-        )
+    selected_portfolio = _get_selected_portfolio(
+        request=request,
+        portfolios=portfolios,
     )
 
     context = {
         "portfolios": portfolios,
-        "selected_portfolio": (
-            selected_portfolio
-        ),
+        "selected_portfolio": (selected_portfolio),
         "market_summary": None,
         "performance": None,
         "risk": None,
@@ -262,65 +196,31 @@ def dashboard(request):
     }
 
     if selected_portfolio is not None:
-        context["currency_symbol"] = (
-            CURRENCY_SYMBOLS.get(
-                selected_portfolio.currency,
-                selected_portfolio.currency,
-            )
+        context["currency_symbol"] = CURRENCY_SYMBOLS.get(
+            selected_portfolio.currency,
+            selected_portfolio.currency,
         )
 
-        market_summary = (
-            _load_market_summary(
-                selected_portfolio
-            )
-        )
+        market_summary = _load_market_summary(selected_portfolio)
 
-        performance = (
-            _load_performance(
-                selected_portfolio
-            )
-        )
+        performance = _load_performance(selected_portfolio)
 
-        risk = (
-            _load_risk_analytics(
-                selected_portfolio
-            )
-        )
+        risk = _load_risk_analytics(selected_portfolio)
 
-        context["market_summary"] = (
-            market_summary
-        )
+        context["market_summary"] = market_summary
 
-        context["performance"] = (
-            performance
-        )
+        context["performance"] = performance
 
         context["risk"] = risk
 
-        context["performance_chart"] = (
-            _build_performance_chart(
-                performance
-            )
-        )
+        context["performance_chart"] = _build_performance_chart(performance)
 
-        context["composition_chart"] = (
-            _build_composition_chart(
-                market_summary
-            )
-        )
+        context["composition_chart"] = _build_composition_chart(market_summary)
 
         if market_summary["available"]:
-            context["holdings"] = (
-                market_summary[
-                    "data"
-                ]["positions"]
-            )
+            context["holdings"] = market_summary["data"]["positions"]
 
-        context["recent_transactions"] = (
-            _build_recent_transactions(
-                selected_portfolio
-            )
-        )
+        context["recent_transactions"] = _build_recent_transactions(selected_portfolio)
 
     return render(
         request,

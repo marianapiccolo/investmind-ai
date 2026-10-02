@@ -16,4 +16,9 @@ urlpatterns = [
         web_views.performance,
         name="performance",
     ),
+    path(
+        "risk/",
+        web_views.risk,
+        name="risk",
+    ),
 ]

@@ -227,3 +227,102 @@ def dashboard(request):
         "portfolios/dashboard.html",
         context,
     )
+
+@login_required
+def performance(request):
+    portfolios = (
+        Portfolio.objects.filter(
+            user=request.user
+        )
+        .order_by("-created_at")
+    )
+
+    selected_portfolio = (
+        _get_selected_portfolio(
+            request=request,
+            portfolios=portfolios,
+        )
+    )
+
+    context = {
+        "portfolios": portfolios,
+        "selected_portfolio": (
+            selected_portfolio
+        ),
+        "performance": None,
+        "currency_symbol": "",
+        "performance_chart": None,
+        "daily_return_chart": None,
+    }
+
+    if selected_portfolio is not None:
+        context["currency_symbol"] = (
+            CURRENCY_SYMBOLS.get(
+                selected_portfolio.currency,
+                selected_portfolio.currency,
+            )
+        )
+
+        performance_data = (
+            _load_performance(
+                selected_portfolio
+            )
+        )
+
+        context["performance"] = (
+            performance_data
+        )
+
+        if performance_data["available"]:
+            series = (
+                performance_data[
+                    "data"
+                ]["series"]
+            )
+
+            context[
+                "performance_chart"
+            ] = {
+                "labels": [
+                    point["date"].isoformat()
+                    for point in series
+                ],
+                "values": [
+                    float(
+                        point[
+                            "cumulative_twr_percentage"
+                        ]
+                    )
+                    for point in series
+                ],
+            }
+
+            context[
+                "daily_return_chart"
+            ] = {
+                "labels": [
+                    point["date"].isoformat()
+                    for point in series
+                ],
+                "values": [
+                    (
+                        float(
+                            point[
+                                "daily_return_percentage"
+                            ]
+                        )
+                        if point[
+                            "daily_return_percentage"
+                        ]
+                        is not None
+                        else None
+                    )
+                    for point in series
+                ],
+            }
+
+    return render(
+        request,
+        "portfolios/performance.html",
+        context,
+    )

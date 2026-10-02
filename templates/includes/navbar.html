@@ -15,7 +15,10 @@
     <span class="sidebar-label"> OVERVIEW </span>
 
     <nav class="sidebar-nav">
-      <a class="sidebar-link active" href="/">
+      <a
+        class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %} active {% endif %}"
+        href="{% url 'web:dashboard' %}"
+      >
         <i class="bi bi-grid-1x2"></i>
         <span>Dashboard</span>
       </a>
@@ -36,7 +39,10 @@
     <span class="sidebar-label"> ANALYTICS </span>
 
     <nav class="sidebar-nav">
-      <a class="sidebar-link" href="#">
+      <a
+        class="sidebar-link {% if request.resolver_match.url_name == 'performance' %} active {% endif %}"
+        href="{% url 'web:performance' %}"
+      >
         <i class="bi bi-bar-chart"></i>
         <span>Performance</span>
       </a>

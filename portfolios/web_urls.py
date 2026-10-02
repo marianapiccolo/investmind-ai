@@ -2,6 +2,7 @@ from django.urls import path
 
 from . import web_views
 
+
 app_name = "web"
 
 urlpatterns = [
@@ -9,5 +10,10 @@ urlpatterns = [
         "",
         web_views.dashboard,
         name="dashboard",
+    ),
+    path(
+        "performance/",
+        web_views.performance,
+        name="performance",
     ),
 ]

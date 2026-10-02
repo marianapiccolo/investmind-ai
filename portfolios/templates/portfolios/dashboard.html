@@ -456,6 +456,162 @@ Dashboard | InvestMind AI
 
 </section>
 
+<section class="dashboard-card holdings-card">
+
+    <div class="card-heading">
+
+        <div>
+            <span class="section-label">
+                PORTFOLIO
+            </span>
+
+            <h3>
+                Holdings
+            </h3>
+        </div>
+
+        <span class="holdings-count">
+            {{ holdings|length }}
+            holding{{ holdings|length|pluralize }}
+        </span>
+
+    </div>
+
+
+    {% if holdings %}
+
+        <div class="holdings-table-wrapper">
+
+            <table class="holdings-table">
+
+                <thead>
+                    <tr>
+                        <th>Asset</th>
+                        <th>Type</th>
+                        <th class="text-end">
+                            Quantity
+                        </th>
+                        <th class="text-end">
+                            Avg. Price
+                        </th>
+                        <th class="text-end">
+                            Current
+                        </th>
+                        <th class="text-end">
+                            Market Value
+                        </th>
+                        <th class="text-end">
+                            Return
+                        </th>
+                        <th class="text-end">
+                            Weight
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for position in holdings %}
+
+                        <tr>
+
+                            <td>
+
+                                <div class="holding-asset">
+
+                                    <div class="holding-symbol">
+                                        {{ position.ticker|slice:":2" }}
+                                    </div>
+
+                                    <div>
+                                        <strong>
+                                            {{ position.ticker }}
+                                        </strong>
+
+                                        <span>
+                                            {{ position.asset_name }}
+                                        </span>
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+                            <td>
+                                <span class="asset-type-badge">
+                                    {{ position.asset_type }}
+                                </span>
+                            </td>
+
+                            <td class="text-end">
+                                {{ position.quantity|floatformat:4 }}
+                            </td>
+
+                            <td class="text-end">
+                                {{ currency_symbol }}
+                                {{ position.average_price|floatformat:2 }}
+                            </td>
+
+                            <td class="text-end">
+                                {{ currency_symbol }}
+                                {{ position.current_price|floatformat:2 }}
+                            </td>
+
+                            <td class="text-end holding-value">
+                                {{ currency_symbol }}
+                                {{ position.market_value|floatformat:2 }}
+                            </td>
+
+                            <td
+                                class="
+                                    text-end
+                                    {% if position.return_percentage > 0 %}
+                                        metric-positive
+                                    {% elif position.return_percentage < 0 %}
+                                        metric-negative
+                                    {% endif %}
+                                "
+                            >
+                                {% if position.return_percentage > 0 %}
+                                    +
+                                {% endif %}
+                                {{ position.return_percentage|floatformat:2 }}%
+                            </td>
+
+                            <td class="text-end">
+                                {{ position.allocation_percentage|floatformat:2 }}%
+                            </td>
+
+                        </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    {% else %}
+
+        <div class="empty-state holdings-empty">
+
+            <i class="bi bi-briefcase"></i>
+
+            <strong>
+                No active holdings
+            </strong>
+
+            <span>
+                Portfolio positions will
+                appear here.
+            </span>
+
+        </div>
+
+    {% endif %}
+
+</section>
 
 <section
     class="
@@ -487,23 +643,105 @@ Dashboard | InvestMind AI
 
         </div>
 
-        <div class="empty-state">
 
-            <i class="bi bi-arrow-left-right"></i>
+        {% if recent_transactions %}
 
-            <strong>
-                Transaction activity
-            </strong>
+            <div class="transaction-list">
 
-            <span>
-                Your latest transactions will
-                appear here.
-            </span>
+                {% for transaction in recent_transactions %}
 
-        </div>
+                    <div class="transaction-row">
+
+                        <div
+                            class="
+                                transaction-icon
+                                {% if transaction.transaction_type == 'BUY' %}
+                                    transaction-icon-buy
+                                {% else %}
+                                    transaction-icon-sell
+                                {% endif %}
+                            "
+                        >
+                            {% if transaction.transaction_type == "BUY" %}
+                                <i class="bi bi-arrow-down-left"></i>
+                            {% else %}
+                                <i class="bi bi-arrow-up-right"></i>
+                            {% endif %}
+                        </div>
+
+
+                        <div class="transaction-main">
+
+                            <div class="transaction-heading">
+
+                                <span
+                                    class="
+                                        transaction-type
+                                        {% if transaction.transaction_type == 'BUY' %}
+                                            transaction-type-buy
+                                        {% else %}
+                                            transaction-type-sell
+                                        {% endif %}
+                                    "
+                                >
+                                    {{ transaction.transaction_type }}
+                                </span>
+
+                                <strong>
+                                    {{ transaction.ticker }}
+                                </strong>
+
+                            </div>
+
+                            <span class="transaction-date">
+                                {{ transaction.transaction_date|date:"d M Y" }}
+                            </span>
+
+                        </div>
+
+
+                        <div class="transaction-details">
+
+                            <strong>
+                                {{ currency_symbol }}
+                                {{ transaction.gross_amount|floatformat:2 }}
+                            </strong>
+
+                            <span>
+                                {{ transaction.quantity|floatformat:4 }}
+                                ×
+                                {{ currency_symbol }}
+                                {{ transaction.price|floatformat:2 }}
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% else %}
+
+            <div class="empty-state">
+
+                <i class="bi bi-arrow-left-right"></i>
+
+                <strong>
+                    No transactions yet
+                </strong>
+
+                <span>
+                    Your latest transactions will
+                    appear here.
+                </span>
+
+            </div>
+
+        {% endif %}
 
     </article>
-
 
     <article
         class="

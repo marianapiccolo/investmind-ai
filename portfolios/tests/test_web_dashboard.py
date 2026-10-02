@@ -1,4 +1,8 @@
-from datetime import date
+from datetime import (
+    date,
+    datetime,
+    timezone,
+)
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -6,8 +10,11 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from portfolios.models import Portfolio
-
+from portfolios.models import (
+    Asset,
+    Portfolio,
+    Transaction,
+)
 
 class WebDashboardTests(TestCase):
     def setUp(self):
@@ -416,3 +423,155 @@ class WebDashboardTests(TestCase):
             response.status_code,
             404,
         )
+
+        @patch(
+        "portfolios.web_views."
+        "get_portfolio_performance"
+        )
+        @patch(
+            "portfolios.web_views."
+            "get_portfolio_risk_analytics"
+        )
+        @patch(
+            "portfolios.web_views."
+            "get_portfolio_market_summary"
+        )
+        def test_dashboard_loads_recent_transactions(
+            self,
+            mock_market_summary,
+            mock_risk,
+            mock_performance,
+        ):
+            asset = Asset.objects.create(
+                ticker="VWCE.DEX",
+                name=(
+                    "Vanguard FTSE "
+                    "All-World UCITS ETF"
+                ),
+                asset_type="ETF",
+                sector="",
+                currency="EUR",
+            )
+
+            Transaction.objects.create(
+                portfolio=self.portfolio,
+                asset=asset,
+                transaction_type="BUY",
+                quantity=Decimal(
+                    "10.00000000"
+                ),
+                price=Decimal(
+                    "100.0000"
+                ),
+                transaction_date=datetime(
+                    2026,
+                    8,
+                    26,
+                    12,
+                    0,
+                    tzinfo=timezone.utc,
+                ),
+            )
+
+            Transaction.objects.create(
+                portfolio=self.portfolio,
+                asset=asset,
+                transaction_type="BUY",
+                quantity=Decimal(
+                    "5.00000000"
+                ),
+                price=Decimal(
+                    "120.0000"
+                ),
+                transaction_date=datetime(
+                    2026,
+                    8,
+                    27,
+                    12,
+                    0,
+                    tzinfo=timezone.utc,
+                ),
+            )
+
+            mock_market_summary.return_value = {
+                "total_invested": Decimal(
+                    "1600.00"
+                ),
+                "total_market_value": Decimal(
+                    "2541.00"
+                ),
+                "total_unrealized_profit_loss": Decimal(
+                    "941.00"
+                ),
+                "total_return_percentage": Decimal(
+                    "58.81"
+                ),
+                "positions": [],
+            }
+
+            mock_performance.return_value = {
+                "portfolio_id": self.portfolio.id,
+                "name": self.portfolio.name,
+                "currency": "EUR",
+                "start_date": None,
+                "end_date": None,
+                "observations": 0,
+                "ending_value": Decimal(
+                    "0.00"
+                ),
+                "net_external_cash_flow": Decimal(
+                    "0.00"
+                ),
+                "time_weighted_return_percentage": Decimal(
+                    "0.00"
+                ),
+                "series": [],
+            }
+
+            mock_risk.return_value = {
+                "return_observations": 0,
+                "annualized_volatility_percentage": Decimal(
+                    "0.00"
+                ),
+                "maximum_drawdown_percentage": Decimal(
+                    "0.00"
+                ),
+            }
+
+            response = self.client.get(
+                reverse("web:dashboard")
+            )
+
+            transactions = response.context[
+                "recent_transactions"
+            ]
+
+            self.assertEqual(
+                len(transactions),
+                2,
+            )
+
+            self.assertEqual(
+                transactions[0]["quantity"],
+                Decimal("5.00000000"),
+            )
+
+            self.assertEqual(
+            transactions[0]["gross_amount"],
+            Decimal("600"),
+        )
+
+            self.assertEqual(
+                transactions[1]["quantity"],
+                Decimal("10.00000000"),
+            )
+
+            self.assertEqual(
+            transactions[1]["gross_amount"],
+            Decimal("1000"),
+        )
+
+
+        
+
+        

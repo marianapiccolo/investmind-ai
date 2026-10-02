@@ -4,7 +4,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 
 from .integrations.alpha_vantage import MarketDataError
-from .models import Portfolio
+from .models import Portfolio, Transaction
 from .portfolio_performance import (
     get_portfolio_performance,
 )
@@ -152,6 +152,53 @@ def _build_composition_chart(
     }
 
 
+def _build_recent_transactions(
+    portfolio,
+):
+    transactions = (
+        Transaction.objects.filter(
+            portfolio=portfolio
+        )
+        .select_related("asset")
+        .order_by(
+            "-transaction_date",
+            "-id",
+        )[:5]
+    )
+
+    return [
+        {
+            "id": transaction.id,
+            "transaction_type": (
+                transaction.transaction_type
+            ),
+            "ticker": (
+                transaction.asset.ticker
+            ),
+            "asset_name": (
+                transaction.asset.name
+            ),
+            "quantity": (
+                transaction.quantity
+            ),
+            "price": (
+                transaction.price
+            ),
+            "gross_amount": (
+                transaction.quantity
+                * transaction.price
+            ),
+            "transaction_date": (
+                transaction.transaction_date
+            ),
+            "currency": (
+                transaction.asset.currency
+            ),
+        }
+        for transaction in transactions
+    ]
+
+
 def _get_selected_portfolio(
     *,
     request,
@@ -165,7 +212,9 @@ def _get_selected_portfolio(
         return portfolios.first()
 
     try:
-        portfolio_id = int(portfolio_id)
+        portfolio_id = int(
+            portfolio_id
+        )
 
     except (
         TypeError,
@@ -208,6 +257,8 @@ def dashboard(request):
         "currency_symbol": "",
         "performance_chart": None,
         "composition_chart": None,
+        "holdings": [],
+        "recent_transactions": [],
     }
 
     if selected_portfolio is not None:
@@ -255,6 +306,19 @@ def dashboard(request):
         context["composition_chart"] = (
             _build_composition_chart(
                 market_summary
+            )
+        )
+
+        if market_summary["available"]:
+            context["holdings"] = (
+                market_summary[
+                    "data"
+                ]["positions"]
+            )
+
+        context["recent_transactions"] = (
+            _build_recent_transactions(
+                selected_portfolio
             )
         )
 

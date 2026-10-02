@@ -1510,3 +1510,275 @@ select.portfolio-selector:focus {
   font-size: 11px;
   font-weight: 650;
 }
+
+/* Holdings */
+
+.holdings-card {
+  min-height: auto;
+
+  margin-bottom: 20px;
+}
+
+.holdings-count {
+  color: var(--finance-text-soft);
+
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.holdings-table-wrapper {
+  width: 100%;
+
+  margin-top: 20px;
+
+  overflow-x: auto;
+}
+
+.holdings-table {
+  width: 100%;
+
+  border-collapse: collapse;
+
+  white-space: nowrap;
+}
+
+.holdings-table th {
+  padding: 11px 12px;
+
+  color: var(--finance-text-faint);
+
+  border-bottom: 1px solid var(--finance-border);
+
+  font-size: 10px;
+  font-weight: 700;
+
+  letter-spacing: 0.04em;
+
+  text-transform: uppercase;
+}
+
+.holdings-table td {
+  padding: 16px 12px;
+
+  color: var(--finance-text-soft);
+
+  border-bottom: 1px solid var(--finance-border);
+
+  font-size: 12px;
+}
+
+.holdings-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.holdings-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.holding-asset {
+  display: flex;
+  align-items: center;
+
+  gap: 11px;
+}
+
+.holding-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 auto;
+
+  width: 34px;
+  height: 34px;
+
+  color: var(--finance-navy-800);
+
+  border: 1px solid var(--finance-border);
+
+  border-radius: 8px;
+
+  background: #f5f7f9;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.holding-asset strong,
+.holding-asset span {
+  display: block;
+}
+
+.holding-asset strong {
+  color: var(--finance-text);
+
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.holding-asset span {
+  max-width: 260px;
+
+  margin-top: 2px;
+
+  overflow: hidden;
+
+  color: var(--finance-text-soft);
+
+  font-size: 10px;
+
+  text-overflow: ellipsis;
+}
+
+.asset-type-badge {
+  display: inline-flex;
+
+  padding: 4px 7px;
+
+  color: var(--finance-navy-800);
+
+  border-radius: 5px;
+
+  background: #eef2f5;
+
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.holding-value {
+  color: var(--finance-text) !important;
+
+  font-weight: 650;
+}
+
+.holdings-empty {
+  min-height: 180px;
+}
+
+/* Transactions */
+
+.transaction-list {
+  margin-top: 16px;
+}
+
+.transaction-row {
+  display: grid;
+
+  grid-template-columns: auto minmax(0, 1fr) auto;
+
+  align-items: center;
+
+  gap: 12px;
+
+  padding: 15px 0;
+
+  border-bottom: 1px solid var(--finance-border);
+}
+
+.transaction-row:last-child {
+  border-bottom: 0;
+}
+
+.transaction-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 34px;
+
+  border-radius: 9px;
+
+  font-size: 14px;
+}
+
+.transaction-icon-buy {
+  color: var(--finance-green);
+
+  background: var(--finance-green-soft);
+}
+
+.transaction-icon-sell {
+  color: var(--finance-red);
+
+  background: var(--finance-red-soft);
+}
+
+.transaction-main {
+  min-width: 0;
+}
+
+.transaction-heading {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+}
+
+.transaction-heading strong {
+  color: var(--finance-text);
+
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.transaction-type {
+  padding: 3px 5px;
+
+  border-radius: 4px;
+
+  font-size: 8px;
+  font-weight: 750;
+
+  letter-spacing: 0.05em;
+}
+
+.transaction-type-buy {
+  color: var(--finance-green);
+
+  background: var(--finance-green-soft);
+}
+
+.transaction-type-sell {
+  color: var(--finance-red);
+
+  background: var(--finance-red-soft);
+}
+
+.transaction-date {
+  display: block;
+
+  margin-top: 4px;
+
+  color: var(--finance-text-faint);
+
+  font-size: 10px;
+}
+
+.transaction-details {
+  display: flex;
+  flex-direction: column;
+
+  text-align: right;
+}
+
+.transaction-details strong {
+  color: var(--finance-text);
+
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.transaction-details span {
+  margin-top: 3px;
+
+  color: var(--finance-text-faint);
+
+  font-size: 10px;
+}
+
+@media (max-width: 560px) {
+  .transaction-details span {
+    display: none;
+  }
+}

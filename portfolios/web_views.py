@@ -3,6 +3,13 @@ from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 
+from portfolios.analytics import (
+    get_portfolio_composition_analytics,
+)
+from portfolios.portfolio_diversification import (
+    get_portfolio_diversification_analytics,
+)
+
 from .integrations.alpha_vantage import MarketDataError
 from .models import Portfolio, Transaction
 from .portfolio_performance import (
@@ -88,6 +95,46 @@ def _load_risk_analytics(portfolio):
         "reason": "",
     }
 
+def _load_composition_analytics(
+    portfolio,
+):
+    try:
+        data = get_portfolio_composition_analytics(
+            portfolio=portfolio
+        )
+    except (ValidationError, MarketDataError) as exc:
+        return {
+            "available": False,
+            "data": None,
+            "reason": _get_error_message(exc),
+        }
+
+    return {
+        "available": True,
+        "data": data,
+        "reason": None,
+    }
+
+
+def _load_diversification_analytics(
+    portfolio,
+):
+    try:
+        data = get_portfolio_diversification_analytics(
+            portfolio=portfolio
+        )
+    except (ValidationError, MarketDataError) as exc:
+        return {
+            "available": False,
+            "data": None,
+            "reason": _get_error_message(exc),
+        }
+
+    return {
+        "available": True,
+        "data": data,
+        "reason": None,
+    }
 
 def _build_performance_chart(
     performance,
@@ -147,6 +194,24 @@ def _build_recent_transactions(
         for transaction in transactions
     ]
 
+def _build_allocation_chart(
+    allocations,
+):
+    if not allocations:
+        return None
+
+    return {
+        "labels": [
+            item["label"]
+            for item in allocations
+        ],
+        "values": [
+            float(
+                item["allocation_percentage"]
+            )
+            for item in allocations
+        ],
+    }
 
 def _get_selected_portfolio(
     *,
@@ -437,5 +502,86 @@ def risk(request):
     return render(
         request,
         "portfolios/risk.html",
+        context,
+    )
+
+@login_required
+def diversification(request):
+    portfolios = (
+        Portfolio.objects.filter(
+            user=request.user
+        )
+        .order_by("-created_at")
+    )
+
+    selected_portfolio = (
+        _get_selected_portfolio(
+            request=request,
+            portfolios=portfolios,
+        )
+    )
+
+    context = {
+        "portfolios": portfolios,
+        "selected_portfolio": (
+            selected_portfolio
+        ),
+        "currency_symbol": "",
+        "composition": None,
+        "diversification": None,
+        "asset_type_chart": None,
+        "sector_chart": None,
+    }
+
+    if selected_portfolio is not None:
+        context["currency_symbol"] = (
+            CURRENCY_SYMBOLS.get(
+                selected_portfolio.currency,
+                selected_portfolio.currency,
+            )
+        )
+
+        composition_data = (
+            _load_composition_analytics(
+                selected_portfolio
+            )
+        )
+
+        diversification_data = (
+            _load_diversification_analytics(
+                selected_portfolio
+            )
+        )
+
+        context["composition"] = (
+            composition_data
+        )
+
+        context["diversification"] = (
+            diversification_data
+        )
+
+        if composition_data["available"]:
+            data = composition_data["data"]
+
+            context["asset_type_chart"] = (
+                _build_allocation_chart(
+                    data[
+                        "asset_type_allocation"
+                    ]
+                )
+            )
+
+            context["sector_chart"] = (
+                _build_allocation_chart(
+                    data[
+                        "sector_allocation"
+                    ]
+                )
+            )
+
+    return render(
+        request,
+        "portfolios/diversification.html",
         context,
     )

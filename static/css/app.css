@@ -2412,3 +2412,404 @@ select.portfolio-selector:focus {
     grid-template-columns: 1fr;
   }
 }
+
+/* Portfolio management */
+
+.primary-action-button,
+.secondary-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  min-height: 40px;
+
+  padding: 0 16px;
+
+  border-radius: 8px;
+
+  font-size: 11px;
+  font-weight: 650;
+
+  text-decoration: none;
+
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.primary-action-button {
+  color: #ffffff;
+
+  background: var(--finance-navy-800);
+
+  border: 1px solid var(--finance-navy-800);
+}
+
+.primary-action-button:hover {
+  color: #ffffff;
+
+  background: var(--finance-navy-900);
+}
+
+.secondary-action-button {
+  color: var(--finance-navy-800);
+
+  background: #ffffff;
+
+  border: 1px solid var(--finance-border);
+}
+
+.secondary-action-button:hover {
+  color: var(--finance-navy-800);
+
+  background: #f7f9fa;
+
+  border-color: #ced6df;
+}
+
+.portfolio-management-grid {
+  display: grid;
+
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  gap: 20px;
+
+  margin-bottom: 20px;
+}
+
+.portfolio-management-card {
+  overflow: hidden;
+
+  background: #ffffff;
+
+  border: 1px solid var(--finance-border);
+
+  border-radius: 12px;
+
+  box-shadow: 0 2px 8px rgba(11, 31, 51, 0.04);
+}
+
+.portfolio-management-card.selected {
+  border-color: rgba(169, 135, 85, 0.65);
+
+  box-shadow: inset 3px 0 0 var(--finance-gold),
+    0 2px 8px rgba(11, 31, 51, 0.04);
+}
+
+.portfolio-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 20px 20px 0;
+}
+
+.portfolio-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 38px;
+  height: 38px;
+
+  color: var(--finance-navy-800);
+
+  background: #eef2f5;
+
+  border-radius: 9px;
+}
+
+.portfolio-selected-badge {
+  padding: 5px 8px;
+
+  color: var(--finance-gold);
+
+  background: #f6f1e9;
+
+  border-radius: 999px;
+
+  font-size: 9px;
+  font-weight: 700;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.06em;
+}
+
+.portfolio-card-body {
+  padding: 17px 20px 20px;
+}
+
+.portfolio-card-body h2 {
+  margin: 5px 0 18px;
+
+  color: var(--finance-text);
+
+  font-size: 19px;
+  font-weight: 650;
+
+  letter-spacing: -0.02em;
+}
+
+.portfolio-card-meta {
+  display: grid;
+
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  gap: 14px;
+}
+
+.portfolio-card-meta span {
+  display: block;
+
+  color: var(--finance-text-faint);
+
+  font-size: 9px;
+  font-weight: 600;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.05em;
+}
+
+.portfolio-card-meta strong {
+  display: block;
+
+  margin-top: 4px;
+
+  color: var(--finance-text-soft);
+
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.portfolio-card-footer {
+  padding: 13px 20px;
+
+  border-top: 1px solid var(--finance-border);
+}
+
+.portfolio-select-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  color: var(--finance-navy-800);
+
+  font-size: 11px;
+  font-weight: 650;
+
+  text-decoration: none;
+}
+
+.portfolio-select-link:hover {
+  color: var(--finance-gold);
+}
+
+.selected-portfolio-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 30px;
+
+  min-height: auto;
+
+  padding: 22px;
+}
+
+.selected-portfolio-panel h3 {
+  margin: 5px 0;
+
+  color: var(--finance-text);
+
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.selected-portfolio-panel p {
+  margin: 0;
+
+  color: var(--finance-text-soft);
+
+  font-size: 11px;
+}
+
+.selected-portfolio-actions {
+  display: flex;
+
+  gap: 9px;
+}
+
+.portfolio-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  max-width: 620px;
+
+  margin: 40px auto;
+
+  padding: 50px 30px;
+
+  text-align: center;
+}
+
+.portfolio-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 54px;
+  height: 54px;
+
+  margin-bottom: 18px;
+
+  color: var(--finance-navy-800);
+
+  background: #eef2f5;
+
+  border-radius: 13px;
+
+  font-size: 20px;
+}
+
+.portfolio-empty-state h2 {
+  margin: 0 0 8px;
+
+  color: var(--finance-text);
+
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.portfolio-empty-state p {
+  max-width: 430px;
+
+  margin: 0 0 22px;
+
+  color: var(--finance-text-soft);
+
+  font-size: 12px;
+
+  line-height: 1.7;
+}
+
+/* InvestMind modal */
+
+.investmind-modal {
+  overflow: hidden;
+
+  border: 1px solid var(--finance-border);
+
+  border-radius: 12px;
+
+  box-shadow: 0 18px 50px rgba(11, 31, 51, 0.14);
+}
+
+.investmind-modal .modal-header {
+  align-items: flex-start;
+
+  padding: 22px;
+
+  border-bottom: 1px solid var(--finance-border);
+}
+
+.investmind-modal .modal-title {
+  margin-top: 5px;
+
+  color: var(--finance-text);
+
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.investmind-modal .modal-body {
+  padding: 22px;
+}
+
+.investmind-modal .modal-footer {
+  padding: 15px 22px;
+
+  border-top: 1px solid var(--finance-border);
+}
+
+.form-field {
+  margin-bottom: 18px;
+}
+
+.form-field:last-child {
+  margin-bottom: 0;
+}
+
+.form-field label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: var(--finance-text-soft);
+
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.form-field .form-control {
+  min-height: 42px;
+
+  color: var(--finance-text);
+
+  border: 1px solid var(--finance-border);
+
+  border-radius: 8px;
+
+  font-size: 12px;
+}
+
+.form-field .form-control:focus {
+  border-color: var(--finance-navy-800);
+
+  box-shadow: 0 0 0 3px rgba(22, 50, 79, 0.08);
+}
+
+.form-help {
+  display: block;
+
+  margin-top: 6px;
+
+  color: var(--finance-text-faint);
+
+  font-size: 9px;
+}
+
+.form-error {
+  margin-top: 6px;
+
+  color: var(--finance-red);
+
+  font-size: 10px;
+}
+
+@media (max-width: 1100px) {
+  .portfolio-management-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .portfolio-management-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .selected-portfolio-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .selected-portfolio-actions {
+    width: 100%;
+  }
+
+  .selected-portfolio-actions a {
+    flex: 1;
+  }
+}

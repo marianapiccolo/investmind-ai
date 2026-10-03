@@ -11,6 +11,11 @@ urlpatterns = [
         name="dashboard",
     ),
     path(
+        "portfolio/",
+        web_views.portfolio_management,
+        name="portfolio",
+    ),
+    path(
         "performance/",
         web_views.performance,
         name="performance",

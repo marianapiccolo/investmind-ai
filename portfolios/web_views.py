@@ -1,11 +1,14 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import Http404
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from portfolios.analytics import (
     get_portfolio_composition_analytics,
 )
+from portfolios.forms import PortfolioForm
 from portfolios.portfolio_diversification import (
     get_portfolio_diversification_analytics,
 )
@@ -583,5 +586,62 @@ def diversification(request):
     return render(
         request,
         "portfolios/diversification.html",
+        context,
+    )
+
+@login_required
+def portfolio_management(request):
+    portfolios = (
+        Portfolio.objects.filter(
+            user=request.user
+        )
+        .order_by("-created_at")
+    )
+
+    selected_portfolio = (
+        _get_selected_portfolio(
+            request=request,
+            portfolios=portfolios,
+        )
+    )
+
+    if request.method == "POST":
+        form = PortfolioForm(
+            request.POST
+        )
+
+        if form.is_valid():
+            portfolio = form.save(
+                commit=False
+            )
+
+            portfolio.user = request.user
+
+            portfolio.save()
+
+            messages.success(
+                request,
+                "Portfolio created successfully.",
+            )
+
+            return redirect(
+                f"{reverse('web:portfolio')}"
+                f"?portfolio={portfolio.id}"
+            )
+
+    else:
+        form = PortfolioForm()
+
+    context = {
+        "portfolios": portfolios,
+        "selected_portfolio": (
+            selected_portfolio
+        ),
+        "form": form,
+    }
+
+    return render(
+        request,
+        "portfolios/portfolio.html",
         context,
     )

@@ -23,7 +23,10 @@
         <span>Dashboard</span>
       </a>
 
-      <a class="sidebar-link" href="#">
+      <a
+        class="sidebar-link {% if request.resolver_match.url_name == 'portfolio' %} active {% endif %}"
+        href="{% url 'web:portfolio' %}"
+      >
         <i class="bi bi-briefcase"></i>
         <span>Portfolio</span>
       </a>

@@ -20,4 +20,9 @@ urlpatterns = [
         web_views.risk,
         name="risk",
     ),
+    path(
+        "diversification/",
+        web_views.diversification,
+        name="diversification",
+    ),
 ]

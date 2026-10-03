@@ -55,7 +55,10 @@
         <span>Risk</span>
       </a>
 
-      <a class="sidebar-link" href="#">
+      <a
+        class="sidebar-link {% if request.resolver_match.url_name == 'diversification' %} active {% endif %}"
+        href="{% url 'web:diversification' %}"
+      >
         <i class="bi bi-pie-chart"></i>
         <span>Diversification</span>
       </a>

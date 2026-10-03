@@ -1867,3 +1867,190 @@ select.portfolio-selector:focus {
     grid-template-columns: 1fr;
   }
 }
+
+/* Risk analytics */
+
+.risk-highlight-grid {
+  display: grid;
+
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  gap: 20px;
+
+  margin-bottom: 20px;
+}
+
+.risk-highlight-card {
+  min-height: auto;
+
+  padding: 22px;
+}
+
+.risk-period-value {
+  margin-top: 14px;
+
+  font-size: 28px;
+  font-weight: 650;
+
+  letter-spacing: -0.035em;
+}
+
+.risk-period-date {
+  display: block;
+
+  margin-top: 6px;
+
+  color: var(--finance-text-soft);
+
+  font-size: 11px;
+}
+
+.risk-window {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  margin-top: 17px;
+
+  color: var(--finance-text);
+
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.risk-window span {
+  color: var(--finance-text-faint);
+}
+
+.risk-doughnut-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 38px;
+
+  min-height: 320px;
+
+  margin-top: 18px;
+}
+
+.risk-doughnut-chart {
+  position: relative;
+
+  flex: 0 0 180px;
+
+  width: 180px;
+  height: 180px;
+}
+
+.risk-distribution-summary {
+  min-width: 180px;
+}
+
+.risk-distribution-row {
+  display: grid;
+
+  grid-template-columns: auto minmax(0, 1fr) auto;
+
+  align-items: center;
+
+  gap: 9px;
+
+  padding: 12px 0;
+
+  border-bottom: 1px solid var(--finance-border);
+}
+
+.risk-distribution-row:last-child {
+  border-bottom: 0;
+}
+
+.risk-distribution-row span {
+  color: var(--finance-text-soft);
+
+  font-size: 11px;
+}
+
+.risk-distribution-row strong {
+  color: var(--finance-text);
+
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.risk-dot {
+  width: 8px;
+  height: 8px;
+
+  border-radius: 50%;
+}
+
+.risk-dot-positive {
+  background: var(--finance-green);
+}
+
+.risk-dot-negative {
+  background: var(--finance-red);
+}
+
+.risk-context-card {
+  display: flex;
+
+  min-height: auto;
+
+  gap: 16px;
+
+  padding: 22px;
+}
+
+.risk-context-card h3 {
+  margin: 5px 0 7px;
+
+  color: var(--finance-text);
+
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.risk-context-card p {
+  max-width: 900px;
+
+  margin: 0 0 8px;
+
+  color: var(--finance-text-soft);
+
+  font-size: 12px;
+
+  line-height: 1.7;
+}
+
+.risk-context-card p:last-child {
+  margin-bottom: 0;
+}
+
+.risk-context-note {
+  color: var(--finance-text-faint) !important;
+}
+
+.risk-context-note strong {
+  color: var(--finance-text-soft);
+}
+
+@media (max-width: 1000px) {
+  .risk-highlight-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .risk-doughnut-wrapper {
+    flex-direction: column;
+
+    gap: 20px;
+  }
+
+  .risk-distribution-summary {
+    width: 100%;
+  }
+}

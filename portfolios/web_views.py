@@ -326,3 +326,116 @@ def performance(request):
         "portfolios/performance.html",
         context,
     )
+
+def _build_risk_distribution_chart(
+    risk,
+):
+    if not risk["available"]:
+        return None
+
+    data = risk["data"]
+
+    return {
+        "labels": [
+            "Positive periods",
+            "Negative periods",
+        ],
+        "values": [
+            data["positive_periods"],
+            data["negative_periods"],
+        ],
+    }
+
+
+def _build_extreme_return_chart(
+    risk,
+):
+    if not risk["available"]:
+        return None
+
+    data = risk["data"]
+
+    return {
+        "labels": [
+            "Best period",
+            "Worst period",
+        ],
+        "values": [
+            float(
+                data["best_period"][
+                    "return_percentage"
+                ]
+            ),
+            float(
+                data["worst_period"][
+                    "return_percentage"
+                ]
+            ),
+        ],
+    }
+
+
+@login_required
+def risk(request):
+    portfolios = (
+        Portfolio.objects.filter(
+            user=request.user
+        )
+        .order_by("-created_at")
+    )
+
+    selected_portfolio = (
+        _get_selected_portfolio(
+            request=request,
+            portfolios=portfolios,
+        )
+    )
+
+    context = {
+        "portfolios": portfolios,
+        "selected_portfolio": (
+            selected_portfolio
+        ),
+        "risk": None,
+        "currency_symbol": "",
+        "risk_distribution_chart": None,
+        "extreme_return_chart": None,
+    }
+
+    if selected_portfolio is not None:
+        context["currency_symbol"] = (
+            CURRENCY_SYMBOLS.get(
+                selected_portfolio.currency,
+                selected_portfolio.currency,
+            )
+        )
+
+        risk_data = (
+            _load_risk_analytics(
+                selected_portfolio
+            )
+        )
+
+        context["risk"] = risk_data
+
+        context[
+            "risk_distribution_chart"
+        ] = (
+            _build_risk_distribution_chart(
+                risk_data
+            )
+        )
+
+        context[
+            "extreme_return_chart"
+        ] = (
+            _build_extreme_return_chart(
+                risk_data
+            )
+        )
+
+    return render(
+        request,
+        "portfolios/risk.html",
+        context,
+    )

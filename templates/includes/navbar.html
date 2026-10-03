@@ -47,7 +47,10 @@
         <span>Performance</span>
       </a>
 
-      <a class="sidebar-link" href="#">
+      <a
+        class="sidebar-link {% if request.resolver_match.url_name == 'risk' %} active {% endif %}"
+        href="{% url 'web:risk' %}"
+      >
         <i class="bi bi-shield-check"></i>
         <span>Risk</span>
       </a>

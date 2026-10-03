@@ -8,10 +8,14 @@ from django.urls import reverse
 from portfolios.analytics import (
     get_portfolio_composition_analytics,
 )
-from portfolios.forms import PortfolioForm
+from portfolios.forms import (
+    PortfolioForm,
+    TransactionForm,
+)
 from portfolios.portfolio_diversification import (
     get_portfolio_diversification_analytics,
 )
+from portfolios.services import create_transaction
 
 from .integrations.alpha_vantage import MarketDataError
 from .models import Portfolio, Transaction
@@ -215,6 +219,66 @@ def _build_allocation_chart(
             for item in allocations
         ],
     }
+
+def _build_transaction_rows(
+    portfolio,
+    transaction_type_filter="",
+):
+    transactions = (
+        Transaction.objects.filter(
+            portfolio=portfolio
+        )
+        .select_related("asset")
+        .order_by(
+            "-transaction_date",
+            "-id",
+        )
+    )
+
+    if transaction_type_filter:
+        transactions = transactions.filter(
+            transaction_type=(
+                transaction_type_filter
+            )
+        )
+
+    return [
+        {
+            "id": transaction.id,
+            "transaction_type": (
+                transaction.transaction_type
+            ),
+            "ticker": (
+                transaction.asset.ticker
+            ),
+            "asset_name": (
+                transaction.asset.name
+            ),
+            "asset_currency": (
+                transaction.asset.currency
+            ),
+            "currency_symbol": (
+                CURRENCY_SYMBOLS.get(
+                    transaction.asset.currency,
+                    transaction.asset.currency,
+                )
+            ),
+            "quantity": (
+                transaction.quantity
+            ),
+            "price": (
+                transaction.price
+            ),
+            "gross_amount": (
+                transaction.quantity
+                * transaction.price
+            ),
+            "transaction_date": (
+                transaction.transaction_date
+            ),
+        }
+        for transaction in transactions
+    ]
 
 def _get_selected_portfolio(
     *,
@@ -643,5 +707,155 @@ def portfolio_management(request):
     return render(
         request,
         "portfolios/portfolio.html",
+        context,
+    )
+
+@login_required
+def transaction_management(request):
+    portfolios = (
+        Portfolio.objects.filter(
+            user=request.user
+        )
+        .order_by("-created_at")
+    )
+
+    selected_portfolio = (
+        _get_selected_portfolio(
+            request=request,
+            portfolios=portfolios,
+        )
+    )
+
+    allowed_types = {
+        value
+        for value, _label
+        in Transaction.TransactionType.choices
+    }
+
+    transaction_type_filter = (
+        request.GET.get(
+            "type",
+            "",
+        )
+        .strip()
+        .upper()
+    )
+
+    if (
+        transaction_type_filter
+        not in allowed_types
+    ):
+        transaction_type_filter = ""
+
+    if request.method == "POST":
+        form = TransactionForm(
+            request.POST
+        )
+
+        if selected_portfolio is None:
+            form.add_error(
+                None,
+                (
+                    "Create a portfolio before "
+                    "adding transactions."
+                ),
+            )
+
+        elif form.is_valid():
+            try:
+                create_transaction(
+                    portfolio=(
+                        selected_portfolio
+                    ),
+                    asset=(
+                        form.cleaned_data[
+                            "asset"
+                        ]
+                    ),
+                    transaction_type=(
+                        form.cleaned_data[
+                            "transaction_type"
+                        ]
+                    ),
+                    quantity=(
+                        form.cleaned_data[
+                            "quantity"
+                        ]
+                    ),
+                    price=(
+                        form.cleaned_data[
+                            "price"
+                        ]
+                    ),
+                    transaction_date=(
+                        form.cleaned_data[
+                            "transaction_date"
+                        ]
+                    ),
+                )
+
+            except ValidationError as exc:
+                for error_message in (
+                    exc.messages
+                ):
+                    form.add_error(
+                        None,
+                        error_message,
+                    )
+
+            else:
+                messages.success(
+                    request,
+                    (
+                        "Transaction created "
+                        "successfully."
+                    ),
+                )
+
+                return redirect(
+                    (
+                        reverse(
+                            "web:transactions"
+                        )
+                        + (
+                            "?portfolio="
+                            f"{selected_portfolio.id}"
+                        )
+                    )
+                )
+
+    else:
+        form = TransactionForm()
+
+    transaction_rows = []
+
+    if selected_portfolio is not None:
+        transaction_rows = (
+            _build_transaction_rows(
+                selected_portfolio,
+                transaction_type_filter,
+            )
+        )
+
+    context = {
+        "portfolios": portfolios,
+        "selected_portfolio": (
+            selected_portfolio
+        ),
+        "form": form,
+        "transactions": (
+            transaction_rows
+        ),
+        "transaction_type_filter": (
+            transaction_type_filter
+        ),
+        "transaction_type_choices": (
+            Transaction.TransactionType.choices
+        ),
+    }
+
+    return render(
+        request,
+        "portfolios/transactions.html",
         context,
     )

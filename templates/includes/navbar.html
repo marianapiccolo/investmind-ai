@@ -31,7 +31,10 @@
         <span>Portfolio</span>
       </a>
 
-      <a class="sidebar-link" href="#">
+      <a
+        class="sidebar-link {% if request.resolver_match.url_name == 'transactions' %} active {% endif %}"
+        href="{% url 'web:transactions' %}"
+      >
         <i class="bi bi-arrow-left-right"></i>
         <span>Transactions</span>
       </a>

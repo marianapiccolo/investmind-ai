@@ -16,6 +16,11 @@ urlpatterns = [
         name="portfolio",
     ),
     path(
+        "transactions/",
+        web_views.transaction_management,
+        name="transactions",
+    ),
+    path(
         "performance/",
         web_views.performance,
         name="performance",

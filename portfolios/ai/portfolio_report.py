@@ -9,7 +9,6 @@ from .portfolio_context import (
     build_ai_portfolio_context,
 )
 
-
 REPORT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -111,12 +110,22 @@ Evidence rules:
 - For metrics used in the analysis, include evidence items.
 - metric_path must be the exact dot-separated path from
   the supplied context.
-- value must exactly match the value supplied at that path.
+- Every evidence item must reference a scalar value only.
+- Never reference an entire object or array as evidence.
+- When referencing a value inside an array, include the
+  zero-based array index in metric_path.
+- For example:
+  sections.composition.data.top_holdings.0.ticker
+  is valid, while
+  sections.composition.data.top_holdings
+  is not valid evidence.
+- value must exactly match the scalar value supplied at
+  that path.
+- Do not serialize objects or arrays into the value field.
 - Do not create evidence for unavailable data.
 - unavailable_sections must contain the exact section names
   whose available field is false.
 """
-
 
 def generate_ai_portfolio_report(
     *,

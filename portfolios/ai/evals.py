@@ -1,6 +1,5 @@
 import re
 
-
 NARRATIVE_FIELDS = [
     "executive_summary",
     "performance_analysis",
@@ -30,13 +29,32 @@ def _resolve_context_path(
     current = context
 
     for part in path.split("."):
-        if not isinstance(current, dict):
-            raise KeyError(path)
+        if isinstance(
+            current,
+            dict,
+        ):
+            if part not in current:
+                raise KeyError(path)
 
-        if part not in current:
-            raise KeyError(path)
+            current = current[part]
+            continue
 
-        current = current[part]
+        if isinstance(
+            current,
+            list,
+        ):
+            if not part.isdigit():
+                raise KeyError(path)
+
+            index = int(part)
+
+            if index >= len(current):
+                raise KeyError(path)
+
+            current = current[index]
+            continue
+
+        raise KeyError(path)
 
     return current
 

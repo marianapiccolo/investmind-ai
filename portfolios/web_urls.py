@@ -40,4 +40,10 @@ urlpatterns = [
         web_views.ai_analyst,
         name="ai-analyst",
     ),
+
+    path(
+    "ai-reports/",
+    web_views.ai_reports,
+    name="ai-reports",
+),
 ]

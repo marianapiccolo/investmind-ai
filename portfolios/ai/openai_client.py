@@ -4,7 +4,6 @@ import logging
 from django.conf import settings
 from openai import APIError, OpenAI
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -56,6 +55,26 @@ def generate_structured_response(
         raise AIProviderError(
             "AI provider is temporarily unavailable."
         ) from exc
+    
+    if response.status == "incomplete":
+        incomplete_reason = None
+
+        if response.incomplete_details:
+            incomplete_reason = (
+                response.incomplete_details.reason
+            )
+
+        logger.warning(
+            (
+                "OpenAI response was incomplete. "
+                "reason=%s"
+            ),
+            incomplete_reason,
+        )
+
+        raise AIProviderError(
+            "AI provider returned an incomplete response."
+        )    
 
     if not response.output_text:
         raise AIProviderError(

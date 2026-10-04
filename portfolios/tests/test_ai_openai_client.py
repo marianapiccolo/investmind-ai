@@ -35,6 +35,9 @@ class OpenAIClientTests(
 
         mock_response = Mock()
 
+        mock_response.status = "completed"
+        mock_response.incomplete_details = None
+
         mock_response.output_text = (
             json.dumps(
                 {
@@ -102,3 +105,57 @@ class OpenAIClientTests(
                 "strict"
             ]
         )
+
+    @patch(
+    "portfolios.ai.openai_client.OpenAI"
+    )
+    def test_incomplete_response_raises_provider_error(
+        self,
+        mock_openai,
+    ):
+        from portfolios.ai.openai_client import (
+            AIProviderError,
+        )
+
+        mock_client = Mock()
+        mock_openai.return_value = (
+            mock_client
+        )
+
+        mock_response = Mock()
+        mock_response.status = "incomplete"
+        mock_response.output_text = (
+            '{"summary": "unfinished'
+        )
+
+        mock_response.incomplete_details = (
+            Mock(
+                reason="max_output_tokens"
+            )
+        )
+
+        mock_client.responses.create.return_value = (
+            mock_response
+        )
+
+        with self.assertRaisesRegex(
+            AIProviderError,
+            "incomplete response",
+        ):
+            generate_structured_response(
+                instructions="Test instructions",
+                input_text="Test input",
+                schema_name="test_schema",
+                schema={
+                    "type": "object",
+                    "properties": {
+                        "summary": {
+                            "type": "string",
+                        }
+                    },
+                    "required": [
+                        "summary",
+                    ],
+                    "additionalProperties": False,
+                },
+            )

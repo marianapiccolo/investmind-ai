@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -30,9 +31,12 @@ from portfolios.portfolio_diversification import (
     get_portfolio_diversification_analytics,
 )
 from portfolios.services import create_transaction
+from portfolios.tasks import (
+    generate_ai_portfolio_report_task,
+)
 
 from .integrations.alpha_vantage import MarketDataError
-from .models import AIConversation, AIMessage, Portfolio, Transaction
+from .models import AIConversation, AIMessage, AIReport, Portfolio, Transaction
 from .portfolio_performance import (
     get_portfolio_performance,
 )
@@ -328,6 +332,34 @@ def _get_ai_conversation(
         pk=conversation_id,
     )
 
+def _get_ai_report(
+    *,
+    raw_report_id,
+    portfolio,
+    reports,
+):
+    if portfolio is None:
+        return None
+
+    if not raw_report_id:
+        return reports.first()
+
+    try:
+        report_id = int(
+            raw_report_id
+        )
+    except (
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise Http404(
+            "AI report not found."
+        ) from exc
+
+    return get_object_or_404(
+        reports,
+        pk=report_id,
+    )
 
 def _build_ai_conversation_items(
     conversations,
@@ -1140,5 +1172,153 @@ def ai_analyst(request):
     return render(
         request,
         "portfolios/ai_analyst.html",
+        context,
+    )
+
+@login_required
+def ai_reports(request):
+    portfolios = (
+        Portfolio.objects.filter(
+            user=request.user
+        )
+        .order_by("-created_at")
+    )
+
+    selected_portfolio = (
+        _get_selected_portfolio(
+            request=request,
+            portfolios=portfolios,
+        )
+    )
+
+    reports = AIReport.objects.none()
+
+    if selected_portfolio is not None:
+        reports = (
+            AIReport.objects.filter(
+                portfolio=selected_portfolio
+            )
+            .order_by("-created_at")
+        )
+
+    if request.method == "POST":
+        if selected_portfolio is None:
+            messages.error(
+                request,
+                (
+                    "Create a portfolio before "
+                    "generating an AI report."
+                ),
+            )
+
+            return redirect(
+                "web:ai-reports"
+            )
+
+        ai_report = AIReport.objects.create(
+            portfolio=selected_portfolio,
+            model=settings.OPENAI_MODEL,
+        )
+
+        task = (
+            generate_ai_portfolio_report_task
+            .delay(
+                ai_report.id
+            )
+        )
+
+        ai_report.celery_task_id = (
+            task.id
+        )
+
+        ai_report.save(
+            update_fields=[
+                "celery_task_id",
+                "updated_at",
+            ]
+        )
+
+        messages.success(
+            request,
+            "AI report generation started.",
+        )
+
+        return redirect(
+            (
+                reverse(
+                    "web:ai-reports"
+                )
+                + (
+                    "?portfolio="
+                    f"{selected_portfolio.id}"
+                    "&report="
+                    f"{ai_report.id}"
+                )
+            )
+        )
+
+    selected_report = (
+        _get_ai_report(
+            raw_report_id=(
+                request.GET.get(
+                    "report"
+                )
+            ),
+            portfolio=selected_portfolio,
+            reports=reports,
+        )
+    )
+
+    evaluation_passed = None
+    report_content = None
+    auto_refresh = False
+
+    if selected_report is not None:
+        auto_refresh = (
+            selected_report.status
+            in {
+                AIReport.Status.PENDING,
+                AIReport.Status.PROCESSING,
+            }
+        )
+
+        if (
+            selected_report.status
+            == AIReport.Status.COMPLETED
+        ):
+            report_content = (
+                selected_report.report
+            )
+
+        if selected_report.evaluation:
+            evaluation_passed = (
+                selected_report.evaluation.get(
+                    "passed"
+                )
+            )
+
+    context = {
+        "portfolios": portfolios,
+        "selected_portfolio": (
+            selected_portfolio
+        ),
+        "reports": reports,
+        "selected_report": (
+            selected_report
+        ),
+        "report_content": (
+            report_content
+        ),
+        "evaluation_passed": (
+            evaluation_passed
+        ),
+        "auto_refresh": (
+            auto_refresh
+        ),
+    }
+
+    return render(
+        request,
+        "portfolios/ai_reports.html",
         context,
     )

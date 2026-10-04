@@ -154,3 +154,20 @@ class TransactionForm(forms.ModelForm):
                     microsecond=0,
                 )
             )
+
+class AIAnalystQuestionForm(forms.Form):
+    question = forms.CharField(
+        max_length=2000,
+        strip=True,
+        widget=forms.Textarea(
+            attrs={
+                "class": "ai-question-input",
+                "placeholder": (
+                    "Ask about performance, risk, "
+                    "diversification or your portfolio..."
+                ),
+                "rows": 2,
+                "autocomplete": "off",
+            }
+        ),
+    )

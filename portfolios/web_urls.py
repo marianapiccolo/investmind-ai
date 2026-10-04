@@ -35,4 +35,9 @@ urlpatterns = [
         web_views.diversification,
         name="diversification",
     ),
+    path(
+        "ai-analyst/",
+        web_views.ai_analyst,
+        name="ai-analyst",
+    ),
 ]

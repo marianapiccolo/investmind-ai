@@ -5,10 +5,24 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from portfolios.ai.conversation import (
+    continue_ai_conversation,
+    start_ai_conversation,
+)
+from portfolios.ai.openai_client import AIProviderError
+from portfolios.ai.tool_calling import (
+    InvalidAIToolResponseError,
+    ToolCallingLimitError,
+)
+from portfolios.ai.tools import (
+    InvalidPortfolioToolArgumentsError,
+    UnknownPortfolioToolError,
+)
 from portfolios.analytics import (
     get_portfolio_composition_analytics,
 )
 from portfolios.forms import (
+    AIAnalystQuestionForm,
     PortfolioForm,
     TransactionForm,
 )
@@ -18,7 +32,7 @@ from portfolios.portfolio_diversification import (
 from portfolios.services import create_transaction
 
 from .integrations.alpha_vantage import MarketDataError
-from .models import Portfolio, Transaction
+from .models import AIConversation, AIMessage, Portfolio, Transaction
 from .portfolio_performance import (
     get_portfolio_performance,
 )
@@ -279,6 +293,76 @@ def _build_transaction_rows(
         }
         for transaction in transactions
     ]
+
+def _get_ai_conversation(
+    *,
+    raw_conversation_id,
+    portfolio,
+):
+    if (
+        not raw_conversation_id
+        or portfolio is None
+    ):
+        return None
+
+    try:
+        conversation_id = int(
+            raw_conversation_id
+        )
+    except (
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise Http404(
+            "Conversation not found."
+        ) from exc
+
+    return get_object_or_404(
+        AIConversation.objects
+        .filter(
+            portfolio=portfolio
+        )
+        .prefetch_related(
+            "messages"
+        ),
+        pk=conversation_id,
+    )
+
+
+def _build_ai_conversation_items(
+    conversations,
+):
+    items = []
+
+    for conversation in conversations:
+        first_user_message = next(
+            (
+                message
+                for message
+                in conversation.messages.all()
+                if message.role
+                == AIMessage.Role.USER
+            ),
+            None,
+        )
+
+        title = (
+            first_user_message.content
+            if first_user_message
+            else "Conversation"
+        )
+
+        items.append(
+            {
+                "id": conversation.id,
+                "title": title,
+                "updated_at": (
+                    conversation.updated_at
+                ),
+            }
+        )
+
+    return items
 
 def _get_selected_portfolio(
     *,
@@ -857,5 +941,204 @@ def transaction_management(request):
     return render(
         request,
         "portfolios/transactions.html",
+        context,
+    )
+
+@login_required
+def ai_analyst(request):
+    portfolios = (
+        Portfolio.objects.filter(
+            user=request.user
+        )
+        .order_by("-created_at")
+    )
+
+    selected_portfolio = (
+        _get_selected_portfolio(
+            request=request,
+            portfolios=portfolios,
+        )
+    )
+
+    conversations = (
+        AIConversation.objects.none()
+    )
+
+    if selected_portfolio is not None:
+        conversations = (
+            AIConversation.objects
+            .filter(
+                portfolio=selected_portfolio
+            )
+            .prefetch_related(
+                "messages"
+            )
+            .order_by(
+                "-updated_at",
+                "-created_at",
+            )
+        )
+
+    raw_conversation_id = (
+        request.POST.get(
+            "conversation"
+        )
+        if request.method == "POST"
+        else request.GET.get(
+            "conversation"
+        )
+    )
+
+    selected_conversation = (
+        _get_ai_conversation(
+            raw_conversation_id=(
+                raw_conversation_id
+            ),
+            portfolio=selected_portfolio,
+        )
+    )
+
+    if request.method == "POST":
+        form = AIAnalystQuestionForm(
+            request.POST
+        )
+
+        if selected_portfolio is None:
+            form.add_error(
+                None,
+                (
+                    "Create a portfolio before "
+                    "using the AI Analyst."
+                ),
+            )
+
+        elif form.is_valid():
+            question = (
+                form.cleaned_data[
+                    "question"
+                ]
+            )
+
+            try:
+                if (
+                    selected_conversation
+                    is None
+                ):
+                    (
+                        selected_conversation,
+                        _answer,
+                    ) = (
+                        start_ai_conversation(
+                            portfolio=(
+                                selected_portfolio
+                            ),
+                            question=question,
+                        )
+                    )
+
+                else:
+                    continue_ai_conversation(
+                        conversation=(
+                            selected_conversation
+                        ),
+                        question=question,
+                    )
+
+            except AIProviderError:
+                form.add_error(
+                    None,
+                    (
+                        "The AI provider is "
+                        "temporarily unavailable. "
+                        "Please try again."
+                    ),
+                )
+
+            except (
+                InvalidAIToolResponseError,
+                ToolCallingLimitError,
+                UnknownPortfolioToolError,
+                InvalidPortfolioToolArgumentsError,
+            ):
+                form.add_error(
+                    None,
+                    (
+                        "The AI analysis could "
+                        "not be completed. "
+                        "Please try again."
+                    ),
+                )
+
+            except ValidationError as exc:
+                for error_message in (
+                    exc.messages
+                ):
+                    form.add_error(
+                        None,
+                        error_message,
+                    )
+
+            except MarketDataError:
+                form.add_error(
+                    None,
+                    (
+                        "Market data is currently "
+                        "unavailable. Please try "
+                        "again later."
+                    ),
+                )
+
+            else:
+                return redirect(
+                    (
+                        reverse(
+                            "web:ai-analyst"
+                        )
+                        + (
+                            "?portfolio="
+                            f"{selected_portfolio.id}"
+                            "&conversation="
+                            f"{selected_conversation.id}"
+                        )
+                    )
+                )
+
+    else:
+        form = AIAnalystQuestionForm()
+
+    conversation_items = (
+        _build_ai_conversation_items(
+            conversations
+        )
+    )
+
+    selected_messages = []
+
+    if selected_conversation is not None:
+        selected_messages = list(
+            selected_conversation
+            .messages.all()
+        )
+
+    context = {
+        "portfolios": portfolios,
+        "selected_portfolio": (
+            selected_portfolio
+        ),
+        "conversations": (
+            conversation_items
+        ),
+        "selected_conversation": (
+            selected_conversation
+        ),
+        "selected_messages": (
+            selected_messages
+        ),
+        "form": form,
+    }
+
+    return render(
+        request,
+        "portfolios/ai_analyst.html",
         context,
     )

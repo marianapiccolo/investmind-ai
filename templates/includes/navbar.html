@@ -75,11 +75,19 @@
     <span class="sidebar-label"> INTELLIGENCE </span>
 
     <nav class="sidebar-nav">
-      <a class="sidebar-link sidebar-link-ai" href="#">
-        <i class="bi bi-stars"></i>
-        <span>AI Analyst</span>
-      </a>
-
+      <a
+      class="
+          sidebar-link
+          sidebar-link-ai
+          {% if request.resolver_match.url_name == 'ai-analyst' %}
+              active
+          {% endif %}
+      "
+      href="{% url 'web:ai-analyst' %}"
+  >
+      <i class="bi bi-stars"></i>
+      <span>AI Analyst</span>
+  </a>
       <a class="sidebar-link" href="#">
         <i class="bi bi-file-earmark-text"></i>
         <span>AI Reports</span>

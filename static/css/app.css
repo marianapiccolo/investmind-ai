@@ -3531,19 +3531,21 @@ select.portfolio-selector:focus {
 
 .ai-message {
     display: flex;
+    align-items: flex-start;
 
     gap: 12px;
 
-    max-width: 800px;
+    width: 100%;
+    max-width: none;
 
     margin-bottom: 25px;
 }
 
-
 .ai-message-user {
-    margin-left: auto;
-}
+    justify-content: flex-end;
 
+    margin-left: 0;
+}
 
 .ai-message-avatar {
     display: flex;
@@ -3565,7 +3567,6 @@ select.portfolio-selector:focus {
 
     font-size: 12px;
 }
-
 
 .ai-message-assistant
 .ai-message-avatar {
@@ -3589,7 +3590,11 @@ select.portfolio-selector:focus {
 
 
 .ai-message-content {
+    flex: 0 1 auto;
+
+    width: fit-content;
     min-width: 0;
+    height: auto;
 
     padding:
         13px 15px;
@@ -3603,11 +3608,18 @@ select.portfolio-selector:focus {
 
     border-radius:
         4px 10px 10px 10px;
-}
 
+    overflow-wrap: anywhere;
+}
 
 .ai-message-user
 .ai-message-content {
+    flex: 0 1 auto;
+
+    width: fit-content;
+    max-width: 620px;
+    height: auto;
+
     color: #ffffff;
 
     background:
@@ -3620,6 +3632,14 @@ select.portfolio-selector:focus {
         10px 4px 10px 10px;
 }
 
+.ai-message-assistant
+.ai-message-content {
+    flex: 0 1 auto;
+
+    width: fit-content;
+    max-width: 760px;
+    height: auto;
+}
 
 .ai-message-heading {
     display: flex;
@@ -3666,11 +3686,11 @@ select.portfolio-selector:focus {
     color:
         var(--finance-text-soft);
 
-    font-size: 11px;
+    font-size: 14px;
 
     line-height: 1.75;
 
-    white-space: pre-wrap;
+    white-space: normal;
 }
 
 
@@ -3743,7 +3763,7 @@ select.portfolio-selector:focus {
     border: 0;
     outline: 0;
 
-    font-size: 11px;
+    font-size: 14px;
 
     line-height: 1.5;
 }
@@ -4241,7 +4261,7 @@ select.portfolio-selector:focus {
 
     color: inherit;
 
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 650;
 }
 
@@ -4254,7 +4274,7 @@ select.portfolio-selector:focus {
     color:
         var(--finance-text-faint);
 
-    font-size: 8px;
+    font-size: 10px;
 }
 
 
@@ -4269,7 +4289,7 @@ select.portfolio-selector:focus {
     color:
         var(--finance-text-faint);
 
-    font-size: 9px;
+    font-size: 12px;
 }
 
 
@@ -4537,7 +4557,7 @@ select.portfolio-selector:focus {
     color:
         var(--finance-text);
 
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 650;
 }
 
@@ -4549,7 +4569,7 @@ select.portfolio-selector:focus {
 
     gap: 5px;
 
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
 }
 
@@ -4642,7 +4662,7 @@ select.portfolio-selector:focus {
     color:
         var(--finance-text-soft);
 
-    font-size: 11px;
+    font-size: 13px;
 
     line-height: 1.75;
 }
@@ -4688,7 +4708,7 @@ select.portfolio-selector:focus {
     color:
         var(--finance-text-soft);
 
-    font-size: 11px;
+    font-size: 13px;
 
     line-height: 1.65;
 }
@@ -4762,7 +4782,7 @@ select.portfolio-selector:focus {
     color:
         var(--finance-text-faint);
 
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 700;
 
     text-transform: uppercase;
@@ -4775,7 +4795,7 @@ select.portfolio-selector:focus {
     color:
         var(--finance-text-soft);
 
-    font-size: 10px;
+    font-size: 12px;
 }
 
 
@@ -4791,7 +4811,7 @@ select.portfolio-selector:focus {
 
     border-radius: 4px;
 
-    font-size: 9px;
+    font-size: 11px;
 }
 
 
@@ -4849,7 +4869,7 @@ select.portfolio-selector:focus {
     color:
         var(--finance-text-soft);
 
-    font-size: 11px;
+    font-size: 20px;
 
     line-height: 1.7;
 }
@@ -4893,4 +4913,39 @@ select.portfolio-selector:focus {
         padding: 18px;
     }
 
+}
+
+.brand-copy {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+
+    min-width: 0;
+}
+
+
+.brand-title-line {
+    display: flex;
+    align-items: baseline;
+
+    gap: 5px;
+}
+
+
+.brand-byline {
+    position: absolute;
+
+    top: calc(50% + 10px);
+    left: 0;
+
+    color:
+        rgba(255, 255, 255, 0.45);
+
+    font-size: 9px;
+    font-weight: 400;
+
+    letter-spacing: 0.01em;
+
+    white-space: nowrap;
 }

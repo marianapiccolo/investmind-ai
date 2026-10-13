@@ -1,0 +1,39 @@
+name: investmind-ai-production-test
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    image: investmind-ai:production
+    init: true
+    env_file:
+      - ${PRODUCTION_TEST_ENV_FILE:-.env.production-test}
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings_production
+      DJANGO_DEBUG: "false"
+      DJANGO_LOCAL_PRODUCTION_TEST: "true"
+      DJANGO_ALLOWED_HOSTS: "127.0.0.1,localhost"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      REDIS_URL: "redis://redis:6379/3"
+      CELERY_BROKER_URL: "redis://redis:6379/4"
+    ports:
+      - "127.0.0.1:8001:8000"
+    networks:
+      - development
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/admin/login/', timeout=5)"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+networks:
+  development:
+    external: true
+    name: ${DEVELOPMENT_NETWORK:-investmind-ai-local_default}

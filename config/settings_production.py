@@ -45,10 +45,33 @@ STORAGES = {
     },
 }
 
+# Configure a real SMTP provider before sending production email.
+MAILERS = {
+    "default": {
+        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "OPTIONS": {
+            "host": os.environ.get("SMTP_HOST", "localhost"),
+            "port": int(os.environ.get("SMTP_PORT", "587")),
+            "username": os.environ.get("SMTP_USERNAME", ""),
+            "password": os.environ.get("SMTP_PASSWORD", ""),
+            "use_tls": env_bool("SMTP_USE_TLS", True),
+            "use_ssl": env_bool("SMTP_USE_SSL", False),
+            "timeout": 10,
+        },
+    },
+}
+
+if MAILERS["default"]["OPTIONS"]["use_tls"] and MAILERS["default"]["OPTIONS"]["use_ssl"]:
+    raise ImproperlyConfigured(
+        "SMTP_USE_TLS and SMTP_USE_SSL cannot both be true."
+    )
+
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "3600"))
+SECURE_HSTS_SECONDS = int(
+    os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "3600")
+)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
 SECURE_HSTS_PRELOAD = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -74,3 +97,9 @@ if LOCAL_PRODUCTION_TEST:
     CSRF_COOKIE_SECURE = False
     SECURE_HSTS_SECONDS = 0
     SECURE_PROXY_SSL_HEADER = None
+
+    MAILERS = {
+        "default": {
+            "BACKEND": "django.core.mail.backends.console.EmailBackend",
+        },
+    }

@@ -1,0 +1,46 @@
+FROM python:3.14-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+RUN groupadd --gid 10001 app \
+    && useradd --uid 10001 --gid app --create-home app
+
+COPY requirements.txt /app/requirements.txt
+
+RUN python -m pip install -r /app/requirements.txt
+
+COPY requirements-production.txt /app/requirements-production.txt
+
+RUN python -m pip install -r /app/requirements-production.txt
+
+COPY --chown=app:app . /app
+
+RUN mkdir -p /app/staticfiles \
+    && chown -R app:app /app/staticfiles
+
+ENV DJANGO_SETTINGS_MODULE=config.settings_production
+
+USER app
+
+# Placeholder values are used only to collect static files during the build.
+# Runtime credentials are supplied separately when the container starts.
+RUN DJANGO_SECRET_KEY='build-only-not-for-production-0123456789abcdef0123456789abcdef' \
+    DJANGO_ALLOWED_HOSTS=localhost \
+    DJANGO_DEBUG=false \
+    POSTGRES_DB=build \
+    POSTGRES_USER=build \
+    POSTGRES_PASSWORD=build \
+    POSTGRES_HOST=127.0.0.1 \
+    POSTGRES_PORT=5432 \
+    OPENAI_API_KEY=build-not-a-real-key \
+    ALPHA_VANTAGE_API_KEY=build-not-a-real-key \
+    python manage.py collectstatic --noinput
+
+EXPOSE 8000
+
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--worker-class", "gthread", "--workers", "2", "--threads", "2", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-"]

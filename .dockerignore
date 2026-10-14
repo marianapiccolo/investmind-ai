@@ -24,3 +24,18 @@ celerybeat-schedule*
 db.sqlite3
 staticfiles
 media
+
+# Terraform local cache, state, plans, and machine-specific inputs
+.terraform
+**/.terraform
+*.tfstate
+*.tfstate.*
+**/*.tfstate
+**/*.tfstate.*
+*.tfplan
+**/*.tfplan
+**/terraform.tfvars
+**/terraform.tfvars.json
+**/*.auto.tfvars
+**/*.auto.tfvars.json
+**/*.auto.tfvars.json.tmp

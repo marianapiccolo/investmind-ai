@@ -1,0 +1,177 @@
+---
+- name: Prepare the InvestMind demonstration server
+  hosts: investmind
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Wait for SSH and Python
+      ansible.builtin.wait_for_connection:
+        timeout: 120
+      become: false
+
+    - name: Wait for the Ubuntu initial configuration to finish
+      ansible.builtin.command:
+        argv: [cloud-init, status, --wait]
+      changed_when: false
+      timeout: 300
+
+    - name: Collect operating system information
+      ansible.builtin.setup:
+        gather_subset:
+          - min
+
+    - name: Require the operating system selected by our Terraform configuration
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - ansible_facts['distribution_version'] is version('24.04', '==')
+          - ansible_facts['architecture'] == 'aarch64'
+        fail_msg: This playbook requires Ubuntu 24.04 on ARM64.
+
+    - name: Read installed packages
+      ansible.builtin.package_facts:
+        manager: apt
+
+    - name: Refuse to replace a different container installation automatically
+      ansible.builtin.assert:
+        that:
+          - >-
+            (ansible_facts['packages'].keys() | list | intersect([
+              'docker.io', 'docker-compose', 'docker-compose-v2',
+              'docker-doc', 'docker-buildx', 'podman-docker', 'containerd', 'runc'
+            ]) | length) == 0
+        fail_msg: Conflicting container packages exist. Review before replacing them.
+
+  tasks:
+    - name: Install HTTPS support for package downloads
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+        lock_timeout: 180
+
+    - name: Create the APT key directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Download the official Docker repository signing key over HTTPS
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        owner: root
+        group: root
+        mode: '0644'
+        timeout: 30
+        validate_certs: true
+      register: docker_key
+
+    - name: Configure the official Docker repository for Ubuntu Noble ARM64
+      ansible.builtin.copy:
+        src: files/docker.sources
+        dest: /etc/apt/sources.list.d/docker.sources
+        owner: root
+        group: root
+        mode: '0644'
+      register: docker_repository
+
+    - name: Install Docker Engine and the Compose and Buildx plugins
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+        cache_valid_time: "{{ 0 if (docker_key.changed or docker_repository.changed) else 3600 }}"
+        lock_timeout: 180
+
+    - name: Create the Docker configuration directory
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Configure rotation of container logs
+      ansible.builtin.copy:
+        src: files/daemon.json
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: '0644'
+        validate: /usr/bin/dockerd --validate --config-file %s
+      notify: Restart Docker
+
+    - name: Start containerd automatically on server boot
+      ansible.builtin.systemd_service:
+        name: containerd
+        enabled: true
+        state: started
+
+    - name: Start Docker automatically on server boot
+      ansible.builtin.systemd_service:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Apply Docker configuration before verification
+      ansible.builtin.meta: flush_handlers
+
+    - name: Create the directory for the future application deployment
+      ansible.builtin.file:
+        path: /opt/investmind
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0750'
+
+    - name: Read Docker and Compose versions
+      ansible.builtin.command:
+        argv: "{{ item }}"
+      loop:
+        - [/usr/bin/docker, --version]
+        - [/usr/bin/docker, compose, version]
+      register: docker_versions
+      changed_when: false
+
+    - name: Verify that the Docker daemon responds
+      ansible.builtin.command:
+        argv: [/usr/bin/docker, info]
+      changed_when: false
+
+    - name: Check whether the demonstration image is already stored
+      ansible.builtin.command:
+        argv: [/usr/bin/docker, image, inspect, 'hello-world:latest']
+      register: hello_image
+      failed_when: false
+      changed_when: false
+
+    - name: Verify container execution with hello-world
+      ansible.builtin.command:
+        argv: [/usr/bin/docker, run, --rm, 'hello-world:latest']
+      register: hello_world
+      changed_when: hello_image.rc != 0
+
+    - name: Show the verification results
+      ansible.builtin.debug:
+        msg:
+          - "{{ docker_versions.results | map(attribute='stdout') | list }}"
+          - "{{ hello_world.stdout }}"
+          - Docker is ready. The InvestMind application has not been deployed yet.
+
+  handlers:
+    - name: Restart Docker
+      ansible.builtin.systemd_service:
+        name: docker
+        state: restarted

@@ -587,7 +587,8 @@ Transactions | InvestMind AI
 {% endif %}
 
 
-{% if form.errors and selected_portfolio %}
+{% if selected_portfolio %}
+{% if form.errors or request.GET.create == "1" %}
 
 <script>
     document.addEventListener(
@@ -612,6 +613,7 @@ Transactions | InvestMind AI
     );
 </script>
 
+{% endif %}
 {% endif %}
 
 {% endblock %}

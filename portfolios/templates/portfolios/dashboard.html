@@ -35,13 +35,23 @@ Dashboard | InvestMind AI
             Refresh
         </button>
 
-        <button
-            class="btn btn-primary-finance"
-            type="button"
-        >
-            <i class="bi bi-plus-lg"></i>
-            Add transaction
-        </button>
+        {% if selected_portfolio %}
+            <a
+                class="btn btn-primary-finance"
+                href="{% url 'web:transactions' %}?portfolio={{ selected_portfolio.id }}&amp;create=1"
+            >
+                <i class="bi bi-plus-lg"></i>
+                Add transaction
+            </a>
+        {% else %}
+            <a
+                class="btn btn-primary-finance"
+                href="{% url 'web:portfolio' %}"
+            >
+                <i class="bi bi-plus-lg"></i>
+                Create portfolio
+            </a>
+        {% endif %}
 
     </div>
 

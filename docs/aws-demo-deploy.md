@@ -1,5 +1,10 @@
 # InvestMind AI: primeiro deploy público na EC2
 
+Este guia registra o primeiro deploy, com build da imagem no Mac e envio por SSH.
+O fluxo atual de entrega pelo GHCR está em `docs/registry-delivery.md`, e a rotina
+atual de apresentação está em `docs/aws-demo-operations.md`. O método original
+abaixo continua disponível como alternativa.
+
 ## O que vamos colocar no servidor
 
 A imagem de produção já foi testada no Mac e no CI. Esta etapa constrói uma
@@ -200,18 +205,17 @@ execute o passo 2 novamente quando quiser implantar outro commit. A URL poderá
 mudar. Prepare e teste o acesso antes da entrevista para aguardar eventual
 emissão/renovação de certificado e confirmar login, dados e serviços externos.
 
-## O que ainda vem depois
+## Evolução após o primeiro deploy
 
-Este primeiro deploy é manual e não altera o workflow CI existente. Depois
-verificaremos backup/restauração, operação de start/stop e demonstração, e
-automatizaremos a entrega de imagens/versões pelo GitHub Actions. O código
-guarda versões; rollback de código não desfaz automaticamente migrations nem
-restaura dados. Não executamos rollback automático nesta entrega.
+Depois desta implantação foram adicionados backup/restauração e entrega de imagens
+pelo GitHub Actions/GHCR. Consulte `docs/aws-demo-backup.md`,
+`docs/registry-delivery.md` e `docs/aws-demo-operations.md` para os fluxos atuais.
+O workflow publica imagens após a CI passar; a implantação continua iniciada no Mac.
+Rollback de código não desfaz automaticamente migrations nem restaura dados.
 
-Esta entrega teve verificações locais de sintaxe, parâmetros dos módulos,
-Compose, Caddy e testes do gerador de ambiente. Sem seu checkout completo ou
-acesso à sua AWS, não é possível executar a aplicação real ou emitir seu
-certificado daqui. A validação ponta a ponta será feita pelos comandos acima.
+Este guia original teve validação real no Mac e na EC2, incluindo HTTPS e compras/
+vendas pelo navegador. A nova entrega do registry tem seus próprios testes e exige
+uma publicação real no GitHub e um deploy real na EC2 para ser validada ponta a ponta.
 
 ## Referências
 

@@ -80,31 +80,45 @@ python scripts/demo_database_backup.py verify latest
 
 ## Apresentar a aplicação pelo navegador
 
-Para reapresentar a versão que já foi construída, confira que o arquivo
-`~/.cache/investmind/release.json` ainda corresponde à versão que você quer usar.
-O deploy usa esse arquivo, não apenas a branch aberta no terminal.
+O fluxo atual usa uma imagem publicada pelo GitHub Actions no GHCR privado.
+Na primeira vez, siga `docs/registry-delivery.md` para baixar e selecionar o
+artifact da versão publicada. O checkout local deve corresponder a esse commit.
+Com a release já preparada e o SSH atualizado:
 
 ```bash
-"$HOME/.venvs/investmind-ansible/bin/ansible-playbook" -i "$HOME/.config/investmind/ansible-inventory.json" infra/ansible/deploy-demo.yml
+ssh-add "$HOME/.ssh/investmind_demo"
+python scripts/deploy_registry_demo.py
 ```
 
-O playbook atualiza a configuração para o IP atual e verifica HTTPS e serviços.
+O script pede um token GitHub classic com `read:packages` sem exibi-lo.
+Ansible faz a EC2 baixar a imagem por digest, atualiza IP/HTTPS e verifica os serviços.
 Use a URL impressa ao terminar. Teste login, carteira, compra/venda e os recursos
-de IA/cotações que pretende mostrar. Prepare o demo antes da entrevista para ter
+IA/cotações que pretende mostrar. Prepare o demo antes da entrevista para ter
 tempo de renovar certificados, conferir dados e resolver provedores externos.
 
 ## Publicar outra versão do código
 
-Primeiro valide e faça commit das mudanças. Depois, ainda no Mac:
+Valide as mudanças, faça commit/push/PR e aguarde CI verde. Depois do merge em
+develop ou main, a CI constrói, verifica e publica a imagem ARM64 no GHCR.
+Atualize seu checkout local e selecione o artifact dessa execução conforme
+`docs/registry-delivery.md`. Depois execute o seletor acima para implantar.
+A publicação da imagem não liga nem atualiza automaticamente a EC2.
+
+Para mudanças com migrations, faça um backup antes do deploy. Um rollback de
+imagem não desfaz migrations nem recupera registros.
+
+## Alternativa: build e transferência pelo Mac
+
+O fluxo original continua disponível:
 
 ```bash
 python scripts/build_demo_release.py
 "$HOME/.venvs/investmind-ansible/bin/ansible-playbook" -i "$HOME/.config/investmind/ansible-inventory.json" infra/ansible/deploy-demo.yml
 ```
 
-O primeiro comando constrói e salva a imagem do commit. O segundo envia essa
-versão à EC2. Para mudanças com migrations, faça um backup antes de executar o
-deploy. Um rollback de imagem não desfaz migrations nem recupera registros.
+Esse fluxo usa `~/.cache/investmind/release.json`, enquanto o registry usa
+`registry-release.json`. Confira qual versão está selecionada em cada fluxo;
+uma nova execução do build local não muda os metadados do registry, e vice-versa.
 
 ## Parar e confirmar
 

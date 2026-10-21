@@ -149,10 +149,16 @@ def generate_ai_portfolio_report_task(
             "status": (ai_report.status),
         }
 
-    except AIProviderError:
+    except AIProviderError as exc:
         ai_report.status = AIReport.Status.FAILED
 
-        ai_report.error_message = "AI provider is unavailable."
+        ai_report.error_message = exc.public_message
+
+        logger.warning(
+            "AI report generation failed report_id=%s error_code=%s",
+            ai_report.id,
+            exc.code,
+        )
 
         ai_report.completed_at = timezone.now()
 

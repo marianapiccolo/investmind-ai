@@ -8,7 +8,22 @@ logger = logging.getLogger(__name__)
 
 
 class AIProviderError(Exception):
-    pass
+    PUBLIC_MESSAGES = {
+        "provider_unavailable": "AI provider is unavailable.",
+        "not_configured": "AI provider is not configured.",
+        "output_limit": (
+            "The AI response reached the configured output limit. "
+            "Please ask the administrator to review the limit."
+        ),
+        "incomplete_response": "The AI provider returned an incomplete response. Please try again.",
+        "empty_response": "The AI provider returned an empty response. Please try again.",
+        "invalid_response": "The AI provider returned an invalid response. Please try again.",
+    }
+
+    def __init__(self, message="AI provider is unavailable.", *, code="provider_unavailable"):
+        super().__init__(message)
+        self.code = code if code in self.PUBLIC_MESSAGES else "provider_unavailable"
+        self.public_message = self.PUBLIC_MESSAGES[self.code]
 
 
 def generate_structured_response(
@@ -20,7 +35,8 @@ def generate_structured_response(
 ):
     if not settings.OPENAI_API_KEY:
         raise AIProviderError(
-            "OpenAI API key is not configured."
+            "OpenAI API key is not configured.",
+            code="not_configured",
         )
 
     client = OpenAI(
@@ -73,12 +89,18 @@ def generate_structured_response(
         )
 
         raise AIProviderError(
-            "AI provider returned an incomplete response."
+            "AI provider returned an incomplete response.",
+            code=(
+                "output_limit"
+                if incomplete_reason == "max_output_tokens"
+                else "incomplete_response"
+            ),
         )    
 
     if not response.output_text:
         raise AIProviderError(
-            "AI provider returned an empty response."
+            "AI provider returned an empty response.",
+            code="empty_response",
         )
 
     try:
@@ -92,5 +114,6 @@ def generate_structured_response(
         )
 
         raise AIProviderError(
-            "AI provider returned an invalid response."
+            "AI provider returned an invalid response.",
+            code="invalid_response",
         ) from exc

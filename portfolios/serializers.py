@@ -646,6 +646,13 @@ class PortfolioRiskAnalyticsSerializer(serializers.Serializer):
         decimal_places=2,
     )
 
+    annualization_available = serializers.BooleanField(required=False)
+
+    annualization_unavailable_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
+
     annualized_volatility_percentage = serializers.DecimalField(
         max_digits=12,
         decimal_places=2,

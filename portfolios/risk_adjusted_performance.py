@@ -148,6 +148,14 @@ def get_portfolio_risk_adjusted_performance(
         "series"
     ]
 
+    if not portfolio_returns["annualization_supported"]:
+        raise ValidationError(
+            "Annualized Sharpe and Sortino ratios are unavailable because "
+            "the return series includes transaction-only dates without fresh "
+            "market prices. These event intervals cannot be treated as "
+            "daily trading observations."
+        )
+
     if len(return_points) < 2:
         raise ValidationError(
             "At least two portfolio return "

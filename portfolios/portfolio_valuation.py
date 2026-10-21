@@ -254,6 +254,9 @@ def build_portfolio_valuation_series(
         series.append(
             {
                 "date": valuation_date,
+                "has_market_price_update": (
+                    valuation_date in price_updates_by_date
+                ),
                 "portfolio_value": (
                     portfolio_value
                 ),

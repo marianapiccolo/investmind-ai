@@ -32,6 +32,7 @@ def build_portfolio_return_series(
     cumulative_growth_factor = Decimal("1")
 
     return_points = []
+    annualization_supported = True
 
     series = []
 
@@ -55,6 +56,9 @@ def build_portfolio_return_series(
             is not None
             and previous_portfolio_value > 0
         ):
+            if not valuation_point["has_market_price_update"]:
+                annualization_supported = False
+
             period_return = (
                 (
                     portfolio_value
@@ -117,6 +121,7 @@ def build_portfolio_return_series(
 
     return {
         "series": series,
+        "annualization_supported": annualization_supported,
         "return_points": return_points,
         "cumulative_growth_factor": (
             cumulative_growth_factor

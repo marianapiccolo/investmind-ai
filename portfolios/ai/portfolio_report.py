@@ -97,6 +97,9 @@ Rules:
   attribution, and diversification.
 - If a section is marked unavailable, acknowledge the
   limitation instead of inferring missing information.
+- A null metric is unavailable even if its section is available.
+- Explain any supplied annualization_unavailable_reason. Do not estimate
+  missing annualized metrics from period returns or other values.
 - Do not predict future returns or prices.
 - Do not tell the user to buy, sell, or hold an investment.
 - Do not provide personalized investment recommendations.

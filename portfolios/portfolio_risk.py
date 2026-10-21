@@ -127,17 +127,25 @@ def get_portfolio_risk_analytics(
         for point in return_points
     ]
 
-    annualized_volatility = (
-        _calculate_annualized_volatility(
-            returns
-        )
-    )
+    annualization_unavailable_reason = ""
 
-    annualized_downside_deviation = (
-        _calculate_annualized_downside_deviation(
-            returns
+    if not portfolio_returns["annualization_supported"]:
+        annualization_unavailable_reason = (
+            "Annualized metrics are unavailable because the return series "
+            "includes transaction-only dates without fresh market prices. "
+            "These event intervals cannot be treated as daily trading observations."
         )
-    )
+    elif len(returns) < 2:
+        annualization_unavailable_reason = (
+            "At least two return observations are required for annualized risk metrics."
+        )
+
+    if annualization_unavailable_reason:
+        annualized_volatility = None
+        annualized_downside_deviation = None
+    else:
+        annualized_volatility = _calculate_annualized_volatility(returns)
+        annualized_downside_deviation = _calculate_annualized_downside_deviation(returns)
 
     running_peak = Decimal("1")
     maximum_drawdown = Decimal("0")
@@ -209,6 +217,8 @@ def get_portfolio_risk_analytics(
                 - Decimal("1")
             )
         ),
+        "annualization_available": not bool(annualization_unavailable_reason),
+        "annualization_unavailable_reason": annualization_unavailable_reason,
         "annualized_volatility_percentage": (
             None
             if annualized_volatility is None

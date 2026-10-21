@@ -1,67 +1,44 @@
 {% extends "base.html" %}
 {% load static %}
-
-
 {% block title %}
 Risk | InvestMind AI
 {% endblock %}
-
-
 {% block content %}
-
 <section class="page-header">
-
     <div>
-
         <span class="page-eyebrow">
             RISK ANALYTICS
         </span>
-
         <h1 class="page-title">
             Risk
         </h1>
-
         <p class="page-description">
             Evaluate portfolio volatility,
             downside behavior and historical losses.
         </p>
-
     </div>
-
 </section>
-
-
 {% if selected_portfolio %}
-
 <section class="portfolio-heading">
-
     <div>
-
         <span class="section-label">
             SELECTED PORTFOLIO
         </span>
-
         <h2>
             {{ selected_portfolio.name }}
         </h2>
-
     </div>
-
-
     <form
         method="get"
         class="portfolio-selector-form"
     >
-
         <select
             name="portfolio"
             class="portfolio-selector"
             aria-label="Select portfolio"
             onchange="this.form.submit()"
         >
-
             {% for portfolio in portfolios %}
-
                 <option
                     value="{{ portfolio.id }}"
                     {% if portfolio.id == selected_portfolio.id %}
@@ -70,109 +47,92 @@ Risk | InvestMind AI
                 >
                     {{ portfolio.name }}
                 </option>
-
             {% endfor %}
-
         </select>
-
     </form>
-
 </section>
-
-
 {% if risk.available %}
-
+{% if risk.data.annualization_unavailable_reason %}
+<section class="dashboard-card risk-context-card" role="status">
+    <div class="performance-explanation-icon">
+        <i class="bi bi-info-circle" aria-hidden="true"></i>
+    </div>
+    <div>
+        <span class="section-label">DATA AVAILABILITY</span>
+        <h3>Annualized metrics unavailable</h3>
+        <p>{{ risk.data.annualization_unavailable_reason }}</p>
+        <p class="risk-context-note">
+            Period returns and maximum drawdown remain available below.
+        </p>
+    </div>
+</section>
+{% endif %}
 <section class="metric-grid">
-
     <article class="metric-card">
-
         <div class="metric-card-header">
-
             <span class="metric-label">
                 Annualized Volatility
             </span>
-
             <span class="metric-icon">
                 <i class="bi bi-activity"></i>
             </span>
-
         </div>
-
         <div class="metric-value">
-            {{ risk.data.annualized_volatility_percentage|floatformat:2 }}%
+            {% if risk.data.annualized_volatility_percentage is not None %}
+                {{ risk.data.annualized_volatility_percentage|floatformat:2 }}%
+            {% else %}
+                Unavailable
+            {% endif %}
         </div>
-
         <span class="metric-helper">
             Historical variability of returns
         </span>
-
     </article>
-
-
     <article class="metric-card">
-
         <div class="metric-card-header">
-
             <span class="metric-label">
                 Downside Deviation
             </span>
-
             <span class="metric-icon">
                 <i class="bi bi-arrow-down-circle"></i>
             </span>
-
         </div>
-
         <div class="metric-value">
-            {{ risk.data.annualized_downside_deviation_percentage|floatformat:2 }}%
+            {% if risk.data.annualized_downside_deviation_percentage is not None %}
+                {{ risk.data.annualized_downside_deviation_percentage|floatformat:2 }}%
+            {% else %}
+                Unavailable
+            {% endif %}
         </div>
-
         <span class="metric-helper">
             Annualized downside variability
         </span>
-
     </article>
-
-
     <article class="metric-card">
-
         <div class="metric-card-header">
-
             <span class="metric-label">
                 Maximum Drawdown
             </span>
-
             <span class="metric-icon">
                 <i class="bi bi-arrow-down-right"></i>
             </span>
-
         </div>
-
         <div class="metric-value metric-negative">
             {{ risk.data.maximum_drawdown_percentage|floatformat:2 }}%
         </div>
-
         <span class="metric-helper">
             Largest peak-to-trough decline
         </span>
-
     </article>
-
-
     <article class="metric-card">
-
         <div class="metric-card-header">
-
             <span class="metric-label">
                 Time-Weighted Return
             </span>
-
             <span class="metric-icon">
                 <i class="bi bi-graph-up-arrow"></i>
             </span>
-
         </div>
-
         <div
             class="
                 metric-value
@@ -186,202 +146,126 @@ Risk | InvestMind AI
             {% if risk.data.time_weighted_return_percentage > 0 %}
                 +
             {% endif %}
-
             {{ risk.data.time_weighted_return_percentage|floatformat:2 }}%
         </div>
-
         <span class="metric-helper">
             Return over the analyzed period
         </span>
-
     </article>
-
 </section>
-
-
 <section class="risk-highlight-grid">
-
     <article class="dashboard-card risk-highlight-card">
-
         <span class="section-label">
             BEST PERIOD
         </span>
-
-        <div class="risk-period-value metric-positive">
-            +
-            {{ risk.data.best_period.return_percentage|floatformat:2 }}%
+        <div class="risk-period-value {% if risk.data.best_period.return_percentage > 0 %}metric-positive{% elif risk.data.best_period.return_percentage < 0 %}metric-negative{% endif %}">
+            {% if risk.data.best_period.return_percentage > 0 %}+{% endif %}{{ risk.data.best_period.return_percentage|floatformat:2 }}%
         </div>
-
         <span class="risk-period-date">
             {{ risk.data.best_period.date|date:"d M Y" }}
         </span>
-
     </article>
-
-
     <article class="dashboard-card risk-highlight-card">
-
         <span class="section-label">
             WORST PERIOD
         </span>
-
-        <div class="risk-period-value metric-negative">
-            {{ risk.data.worst_period.return_percentage|floatformat:2 }}%
+        <div class="risk-period-value {% if risk.data.worst_period.return_percentage > 0 %}metric-positive{% elif risk.data.worst_period.return_percentage < 0 %}metric-negative{% endif %}">
+            {% if risk.data.worst_period.return_percentage > 0 %}+{% endif %}{{ risk.data.worst_period.return_percentage|floatformat:2 }}%
         </div>
-
         <span class="risk-period-date">
             {{ risk.data.worst_period.date|date:"d M Y" }}
         </span>
-
     </article>
-
-
     <article class="dashboard-card risk-highlight-card">
-
         <span class="section-label">
             HISTORICAL WINDOW
         </span>
-
         <div class="risk-window">
             {{ risk.data.start_date|date:"d M Y" }}
             <span>→</span>
             {{ risk.data.end_date|date:"d M Y" }}
         </div>
-
         <span class="risk-period-date">
             {{ risk.data.return_observations }}
             return observations
         </span>
-
     </article>
-
 </section>
-
-
 <section class="analytics-chart-grid">
-
     <article class="dashboard-card analytics-chart-card">
-
         <div class="card-heading">
-
             <div>
-
                 <span class="section-label">
                     RETURN FREQUENCY
                 </span>
-
                 <h3>
                     Positive vs Negative Periods
                 </h3>
-
             </div>
-
         </div>
-
         {% if risk_distribution_chart %}
-
             <div class="risk-doughnut-wrapper">
-
                 <div class="risk-doughnut-chart">
-
                     <canvas
                         id="riskDistributionChart"
                         aria-label="Positive and negative return periods"
                     ></canvas>
-
                 </div>
-
                 <div class="risk-distribution-summary">
-
                     <div class="risk-distribution-row">
-
                         <span class="risk-dot risk-dot-positive"></span>
-
                         <span>
                             Positive periods
                         </span>
-
                         <strong>
                             {{ risk.data.positive_periods }}
                         </strong>
-
                     </div>
-
                     <div class="risk-distribution-row">
-
                         <span class="risk-dot risk-dot-negative"></span>
-
                         <span>
                             Negative periods
                         </span>
-
                         <strong>
                             {{ risk.data.negative_periods }}
                         </strong>
-
                     </div>
-
                 </div>
-
             </div>
-
         {% endif %}
-
     </article>
-
-
     <article class="dashboard-card analytics-chart-card">
-
         <div class="card-heading">
-
             <div>
-
                 <span class="section-label">
                     RETURN EXTREMES
                 </span>
-
                 <h3>
                     Best vs Worst Period
                 </h3>
-
             </div>
-
         </div>
-
         {% if extreme_return_chart %}
-
             <div class="analytics-chart-large">
-
                 <canvas
                     id="extremeReturnChart"
                     aria-label="Best and worst portfolio return periods"
                 ></canvas>
-
             </div>
-
         {% endif %}
-
     </article>
-
 </section>
-
-
 <section class="dashboard-card risk-context-card">
-
     <div class="performance-explanation-icon">
         <i class="bi bi-info-circle"></i>
     </div>
-
     <div>
-
         <span class="section-label">
             INTERPRETING RISK
         </span>
-
         <h3>
             Historical metrics need context
         </h3>
-
         <p>
             Volatility measures how widely returns
             have varied, while downside deviation
@@ -390,7 +274,6 @@ Risk | InvestMind AI
             observed decline from a portfolio peak
             to a later trough.
         </p>
-
         <p class="risk-context-note">
             This analysis is based on
             <strong>
@@ -401,77 +284,46 @@ Risk | InvestMind AI
             periods can change substantially as more
             observations become available.
         </p>
-
     </div>
-
 </section>
-
-
 {% else %}
-
 <section class="dashboard-card">
-
     <div class="empty-state">
-
         <i class="bi bi-shield-exclamation"></i>
-
         <strong>
             Risk analytics unavailable
         </strong>
-
         <span>
             {{ risk.reason }}
         </span>
-
     </div>
-
 </section>
-
 {% endif %}
-
-
 {% else %}
-
 <section class="dashboard-card">
-
     <div class="empty-state">
-
         <i class="bi bi-briefcase"></i>
-
         <strong>
             No portfolio available
         </strong>
-
         <span>
             Create a portfolio to analyze risk.
         </span>
-
     </div>
-
 </section>
-
 {% endif %}
-
-
 {% if risk_distribution_chart %}
     {{ risk_distribution_chart|json_script:"risk-distribution-chart-data" }}
 {% endif %}
-
 {% if extreme_return_chart %}
     {{ extreme_return_chart|json_script:"extreme-return-chart-data" }}
 {% endif %}
-
 {% endblock %}
-
-
 {% block extra_js %}
-
 <script
     src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
 ></script>
-
 <script
     src="{% static 'js/risk.js' %}"
 ></script>
-
 {% endblock %}

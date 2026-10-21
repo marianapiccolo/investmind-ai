@@ -1,58 +1,47 @@
-# Entrega contínua: imagem privada no GitHub Container Registry
+# Private registry delivery and deployment
 
-## O que muda
+GitHub Actions tests the application and publishes eligible production images to
+the private GitHub Container Registry (GHCR). The operator selects a published
+release and initiates deployment from the Mac. The EC2 instance pulls the selected
+image directly from GHCR by digest.
 
-A CI existente continua construindo os containers locais, aplicando migrations,
-executando os testes Django e verificando a imagem de produção e seu HTTP/CSS.
-Agora também executa os testes dos scripts de infraestrutura em `scripts/tests`.
+This is an automated image delivery workflow with an operator-initiated deployment
+step. Successful publication does not start or update EC2 automatically.
 
-Após push/merge em `develop` ou `main`, um segundo job aguarda a aprovação do job
-de testes. Ele constrói a imagem de produção em Linux ARM64, testa suas configurações
-e publica a imagem em `ghcr.io/marianapiccolo/investmind-ai:SHA_COMPLETO`.
-Esse job usa um runner ARM64 padrão do GitHub, não a sua EC2.
+## Pipeline behavior
 
-No PR, o job de publicação é ignorado: o código ainda não foi integrado.
-A EC2 pode permanecer parada durante toda a CI e a publicação.
-O workflow não contém credenciais AWS, SSH ou chaves de API de produção.
+| Event or job | Behavior |
+| --- | --- |
+| Pull request into `develop` or `main` | Runs CI checks; publication is skipped |
+| Eligible push to `develop` or `main` | Runs checks, then publishes if the test job succeeds |
+| Test job | Runs infrastructure helper tests, Docker/Django checks, migrations, tests and production HTTP/static smoke checks |
+| Publish job | Builds on a native ARM64 runner, checks production settings and publishes the image |
+| Release artifact | Stores JSON metadata identifying the commit, digest, platform and workflow run |
+| Deployment script | Validates metadata and the AWS target, then invokes Ansible from the Mac |
 
-A publicação gera um artifact pequeno chamado `investmind-release-SHA_COMPLETO`.
-Ele contém `published-release.json`: commit, registry, plataforma, digest e URL da
-execução. A imagem fica no registry; esse artifact guarda só os metadados para escolhê-la.
+The publication job runs on a GitHub-hosted ARM64 runner rather than the demo EC2.
+The workflow uses no production AWS, SSH or application API credentials. The
+instance can remain stopped during CI and publication.
 
-O deploy permanece sob seu controle: no Mac, um script valida a release e inicia
-Ansible. A EC2 baixa a imagem diretamente do GHCR por digest. O Mac não precisa
-construir, baixar ou enviar o arquivo grande da imagem neste novo fluxo.
+The image reference is `ghcr.io/marianapiccolo/investmind-ai:FULL_COMMIT_SHA`.
+The artifact is named `investmind-release-FULL_COMMIT_SHA` and contains
+`published-release.json`. The image is in GHCR; the artifact contains only its
+selection metadata.
 
-Isso é entrega contínua com implantação manual, não implantação automática a cada merge.
+## Relevant files
 
-## Arquivos
+- `.github/workflows/ci.yml`
+- `scripts/deploy_registry_demo.py`
+- `scripts/tests/test_deploy_registry_demo.py`
+- `infra/ansible/deploy-registry.yml`
+- `scripts/demo_database_backup.py`, which provides shared identity and SSH helpers
 
-- `.github/workflows/ci.yml`: workflow completo com os jobs `test` e `publish`.
-- `scripts/deploy_registry_demo.py`: seleciona a versão e inicia o novo playbook.
-- `scripts/tests/test_deploy_registry_demo.py`: testes offline do seletor e seus limites.
-- `infra/ansible/deploy-registry.yml`: baixa a imagem e executa o deploy conhecido.
-- `docs/registry-delivery.md`: este guia.
-- `docs/aws-demo-operations.md`: operação atualizada para usar o registry.
-- `docs/aws-demo-deploy.md`: guia do primeiro deploy, com referência ao fluxo novo.
+The selector uses the Python standard library and the existing project tools.
 
-Os helpers de backup da fase anterior precisam estar integrados: o novo script
-reutiliza suas verificações de conta/instância, SSH e escrita privada de JSON.
-Não há dependência Python nova para o seletor ou seus testes.
+## Validate the delivery tooling locally
 
-## 1. Preparar e testar no Mac, com a EC2 parada
-
-Após o merge do backup, com o repositório limpo:
-
-```bash
-cd ~/Documentos/GitHub/investmind-ai
-source .venv/bin/activate
-git switch develop
-git pull --ff-only origin develop
-git switch -c feature/registry-delivery
-```
-
-Copie os sete arquivos do pacote para o projeto. `ci.yml` e os dois guias de AWS
-são arquivos completos que substituem suas versões anteriores. Os outros quatro são novos.
+Run from the repository root in the **Mac terminal**, with the local Python
+environment active:
 
 ```bash
 python -m unittest discover -s scripts/tests -p 'test_*.py' -v
@@ -60,146 +49,149 @@ python scripts/deploy_registry_demo.py --help
 "$HOME/.venvs/investmind-ansible/bin/ansible-playbook" -i "$HOME/.config/investmind/ansible-inventory.json" infra/ansible/deploy-registry.yml --syntax-check
 ```
 
-Esses comandos não ligam a EC2 nem publicam imagens. Os testes simulam AWS/SSH/Ansible;
-a publicação real será validada no GitHub e o pull real, depois, na EC2.
+Helper tests use simulated external operations. A syntax check does not deploy
+the application or validate live registry access.
 
-## 2. Fazer o PR
+## Select a published release
 
-Depois da revisão, adicione somente os sete arquivos desta entrega, faça commit,
-push e PR de `feature/registry-delivery` para `develop`. Aguarde o job de testes
-verde. `Publish tested ARM64 image` aparecer como skipped no PR é o esperado.
-Faça o merge para validar a primeira publicação real.
+After a pull request is merged, open the successful push execution under
+**Actions > InvestMind AI CI/CD**. Confirm that the test and publication jobs passed.
+Download the artifact matching the integrated commit. A merge or squash commit
+can differ from the original feature-branch commit.
 
-## 3. Conferir a primeira publicação
-
-No GitHub, abra Actions > InvestMind AI CI/CD > execução do push em develop.
-O job `test` deve passar primeiro; depois, `Publish tested ARM64 image`.
-O primeiro build ARM64 pode demorar mais por ainda não ter cache.
-
-O GitHub autentica a publicação com o `GITHUB_TOKEN` automático da execução e
-`packages: write` somente no job de publicação. Não crie um PAT para esse job.
-O pacote é associado ao repositório e deve aparecer como PRIVATE em Packages.
-A primeira publicação no GHCR é privada por padrão; mantenha essa visibilidade.
-
-Ao final da execução, baixe o artifact `investmind-release-SHA_COMPLETO` na seção
-Artifacts. O script do Mac aceita diretamente esse ZIP, sem precisar extraí-lo.
-O artifact expira após 14 dias; os metadados selecionados ficam em cache no Mac
-e a imagem permanece no GHCR até que você a exclua pelas ferramentas do GitHub.
-
-Antes de selecionar essa release, atualize o checkout local para o commit publicado:
+Before selecting a `develop` release, update a clean local checkout:
 
 ```bash
+git status --short --branch
 git switch develop
 git pull --ff-only origin develop
+git rev-parse HEAD
 ```
 
-O seletor exige checkout limpo e HEAD igual ao commit do artifact. Assim, os arquivos
-Compose/Caddy/ambiente copiados pelo Ansible correspondem à versão da aplicação.
-Se houver novos commits depois do download, escolha o artifact da versão atual ou
-prepare conscientemente o checkout da versão antiga antes de fazer rollback.
-O SHA de um merge/squash pode ser diferente daquele mostrado na branch de feature.
-
-Exemplo: substitua SHA_COMPLETO pelo nome real do arquivo baixado em Downloads:
+Select its downloaded ZIP, replacing `FULL_COMMIT_SHA` with the actual filename:
 
 ```bash
-python scripts/deploy_registry_demo.py "$HOME/Downloads/investmind-release-SHA_COMPLETO.zip" --prepare-only
+python scripts/deploy_registry_demo.py "$HOME/Downloads/investmind-release-FULL_COMMIT_SHA.zip" --prepare-only
 ```
 
-O comando valida e salva `~/.cache/investmind/registry-release.json` com permissão
-600. `--prepare-only` não acessa AWS, SSH, Docker ou solicita token.
-O artifact deve vir da execução do seu repositório; a verificação de formato e
-labels não é uma assinatura criptográfica de origem. Não use artifacts de terceiros.
+The selector also accepts `published-release.json` directly. It requires local
+`HEAD` to match the metadata revision and rejects tracked working-tree changes.
+Untracked files are not checked by that Git comparison; inspect `git status`
+separately and keep deployment inputs committed.
 
-`workflow_dispatch` também foi configurado, mas o botão Run workflow só estará
-disponível quando essa definição existir na branch padrão do repositório.
-Para a primeira publicação use o push em develop, sem depender desse botão.
+Preparation writes `~/.cache/investmind/registry-release.json` with permissions
+`0600`. It does not access AWS, SSH or Docker and does not request a token.
+Expected output identifies the application commit, registry image and source
+workflow, followed by:
 
-## 4. Preparar a leitura da imagem privada
+```text
+Release metadata prepared. No AWS resources were accessed.
+```
 
-Para a EC2 ler um pacote privado, gere na SUA conta GitHub um personal access token
-CLASSIC com escopo `read:packages` e prazo de expiração, por exemplo 30 dias:
+Use an artifact downloaded from the matching workflow in this repository. Format
+validation and image labels are consistency checks, not a cryptographic signature
+of provenance. The configured artifact retention is 14 days. Keep the selected
+metadata available or select another published version if the cache is lost.
 
-https://github.com/settings/tokens
+The workflow also declares `workflow_dispatch`. Availability of the GitHub
+**Run workflow** control depends on that workflow definition being present on the
+repository's default branch. Normal eligible pushes do not depend on that control.
 
-Caminho: Settings > Developer settings > Personal access tokens > Tokens (classic)
-> Generate new token (classic). Nome sugerido: InvestMind demo image pull.
-Selecione somente `read:packages`, sem adicionar permissões de escrita ou exclusão.
-Guarde o token no seu gerenciador de senhas. Não o coloque no código, nos docs,
-em GitHub Secrets ou em comandos com o valor literal. O script o pedirá ocultamente.
+## Authentication
 
-O `GITHUB_TOKEN` do Actions publica a imagem; esse PAT de leitura autoriza o pull
-privado durante o deploy. São credenciais de finalidades e ciclos de vida diferentes.
+The publish job uses the workflow's automatic `GITHUB_TOKEN` with
+`packages: write`. No manually created token is required for that publication job.
 
-## 5. Ligar a EC2 e atualizar acesso
+The operator-initiated pull of the private image uses a **personal access token
+(classic)** with `read:packages`, a suitable expiry and access to the package.
+Create it under [GitHub token settings](https://github.com/settings/tokens) and
+store it privately. Package visibility must remain private for the current setup.
 
-Use `docs/aws-demo-operations.md`: SSO, conta `990861495140`, start, inventário,
-plano Terraform, validação da chave SSH e `exit` para voltar ao Mac.
-Carregue a chave dedicada no agente, especialmente se ela possui passphrase:
+The deployment script requests the token through a hidden prompt. Do not put its
+literal value in commands, source files, release JSON or documentation. A valid
+login alone does not prove that the token can pull the package; check scope,
+expiry and package access if the pull is denied.
+
+## Prepare the AWS target
+
+Follow [AWS operations](aws-demo-operations.md) to authenticate with SSO, confirm
+the configured account, start EC2, prepare the inventory before the Terraform
+access update, and verify the SSH host key. Return to the Mac after the manual SSH
+check and load the dedicated key:
 
 ```bash
 ssh-add "$HOME/.ssh/investmind_demo"
 ```
 
-Se a versão inclui migrations, faça um backup antes do deploy. A cópia atual do
-banco é preservada pelo novo playbook, assim como usuários e ativos cadastrados.
+Create a database backup before deploying migrations. The deployment preserves
+existing database volumes; it does not copy the development database to AWS.
 
-## 6. Implantar a versão selecionada
+## Deploy the selected release
 
-Com os metadados já preparados e o checkout ainda no mesmo commit, execute no Mac:
+With the checkout still matching the prepared release, run **on the Mac**:
 
 ```bash
 python scripts/deploy_registry_demo.py
 ```
 
-O script confirma conta, tags, VPC, estado/IP da EC2 e inventário. Testa o SSH com
-validação de host ativa e então pede o PAT de leitura sem mostrá-lo na tela.
-O token segue pelo ambiente do processo Ansible e pelo stdin de `docker login`.
-Não aparece na linha de comando nem no JSON de release; o task tem `no_log: true`.
+The script revalidates release metadata, account, instance tags, VPC, live public
+address, inventory and SSH access before requesting the registry token.
 
-Na EC2, Ansible cria um diretório temporário privado de configuração Docker, faz
-login, baixa `ghcr.io/...@sha256:...` e remove esse diretório em um bloco `always`,
-inclusive em falhas normais. Se o computador/processo for encerrado à força, o cleanup
-pode não acontecer; nesse caso, revise diretórios `/tmp/investmind-ghcr-*` na EC2.
-O token temporariamente passa pelo servidor: não é um mecanismo de acesso sem credenciais.
-Não compartilhe a saída de uma depuração com `no_log` desabilitado.
+Ansible creates a private temporary Docker configuration on EC2 and authenticates
+using `docker login --password-stdin`. The token is supplied through the Ansible
+process environment, and the authentication task has `no_log: true`. The temporary
+Docker configuration is removed in an `always` block on success or a handled task
+failure. Forced termination may interrupt cleanup; investigate remaining
+`/tmp/investmind-ghcr-*` directories if necessary.
 
-Após o pull, verifica plataforma ARM64 e labels de repositório/commit. O digest é
-usado também em `APP_IMAGE`, de modo que uma tag alterada não muda a versão selecionada.
-Compose mantém `pull_policy: never` na aplicação: a imagem já foi baixada pelo task
-autenticado, e reiniciar containers não exige salvar um token permanente no servidor.
+The server temporarily receives the token during authentication. Do not disable
+`no_log` or share unredacted debug output. Application secrets remain in the
+separate root-owned server environment files.
 
-O restante repete o deploy que você já testou: configuração de ambiente/IP,
-validação do proxy, PostgreSQL/Redis, pausa da aplicação, migrations, subida dos
-serviços e testes HTTPS/CSS/Celery. Os segredos da aplicação continuam na EC2.
-Esse deploy tem uma janela de indisponibilidade; não é uma solução de alta disponibilidade.
+After pulling the image, Ansible verifies Linux ARM64 and the source/revision
+labels. The exact digest is also stored in `APP_IMAGE`. Application services use
+`pull_policy: never` because the authenticated pull has already completed.
 
-Teste login e compra/venda no endereço impresso. Confira também as funcionalidades
-de IA/cotações que pretende mostrar. Ao terminar, pare a EC2 e confirme `stopped`.
+The playbook then updates the host configuration, validates Compose and Caddy,
+starts PostgreSQL and Redis, stops the application services, checks production
+settings, applies migrations, and starts the application and proxy. It verifies
+Celery connectivity and public HTTPS/admin CSS before recording the `current`
+release link.
 
-## 7. Reutilização e custos
+This deployment has a downtime window. A failed run can leave application
+processes stopped or partially updated; retaining the previous `current` link is
+not an automatic rollback mechanism. Review the failed task and actual service
+state before recovery.
 
-Para reapresentar a mesma versão, os metadados ficam preparados no Mac. Com o
-checkout correspondente, basta atualizar acesso e executar novamente o seletor.
-Ele pedirá o token de leitura; use um token válido ou gere outro se expirou.
-Se o cache de metadados sumir, recupere seu artifact ou prepare outra versão publicada.
+## Validate and shut down
 
-O GitHub documenta atualmente armazenamento/tráfego do Container Registry gratuitos.
-Os jobs do Actions em repositório privado usam a franquia de minutos e podem gerar
-cobrança se você exceder a franquia e permitir gastos adicionais. Artifacts/cache têm
-suas próprias quotas; o artifact desta entrega contém somente um JSON pequeno.
-Usamos runners padrão, cache mínimo e nenhuma EC2 para o build. Não configuramos
-novos recursos pagos na AWS. Consulte o uso/budget de Actions na sua conta GitHub.
-Não há exclusão automática de versões do GHCR nesta entrega.
+After `failed=0` and `unreachable=0`, use the printed URL to check the intended
+user flows. Container health and HTTPS smoke checks do not replace functional
+validation. See [recorded validation](functional-validation-review.md) for the
+verified application behavior and analytical limits.
 
-O build antigo no Mac e `deploy-demo.yml` continuam disponíveis como alternativa;
-seus metadados `release.json` são separados de `registry-release.json`. Eles podem
-apontar para versões diferentes. Escolha conscientemente qual fluxo está executando.
+Stop EC2 and confirm `stopped` using the
+[operating procedure](aws-demo-operations.md#stop-and-confirm) after the demo.
 
-## Referências
+## Reuse and rollback limits
 
-- https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
-- https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images
-- https://docs.github.com/en/actions/reference/runners/github-hosted-runners
-- https://docs.github.com/en/billing/concepts/product-billing/github-packages
-- https://github.com/docker/build-push-action
-- https://github.com/actions/upload-artifact
+The cached metadata can select the same release again if the matching checkout
+and a valid pull token are available. Refresh live access before each deployment.
+An older release requires its corresponding source checkout and metadata.
+
+An image rollback does not undo migrations, restore lost records or ensure schema
+compatibility. Database recovery is a separate process described in
+[backup and restore verification](aws-demo-backup.md).
+
+The alternative archive-transfer method uses
+`~/.cache/investmind/release.json`, separate from the registry metadata. Preparing
+one flow does not select the same version in the other.
+
+GitHub Actions, artifacts, caches and package storage are subject to account
+quotas and billing settings. No automatic GHCR image retention or deletion is
+configured. Review account usage rather than treating publication as a spending
+cap or assuming an unlimited allowance.
+
+## Reference
+
+- [GitHub Container Registry authentication and image references](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)

@@ -1,119 +1,71 @@
-# InvestMind AI: preparação para produção
+# Local production runtime verification
 
-Esta etapa acrescenta Gunicorn, WhiteNoise e configurações específicas de
-produção. O teste local usa HTTP apenas na interface de loopback do Mac.
-A configuração efetiva de HTTPS e o deploy na AWS virão nas próximas fases.
+This guide verifies Gunicorn, WhiteNoise, collected static assets and production
+settings on the Mac. The test publishes HTTP only on loopback and connects to the
+existing development PostgreSQL and Redis services. It is separate from the AWS
+HTTPS deployment.
 
-## Fases até a primeira versão hospedada
+Run all commands from the repository root in the **Mac terminal**, with Docker
+Desktop running and the local Python environment available for helper scripts.
 
-| Fase | Resultado |
+## Runtime files
+
+| File | Purpose |
 | --- | --- |
-| Docker local — concluída | Django, PostgreSQL/pgvector, Redis, Worker e Beat reproduzíveis com Compose. |
-| CI — concluída | GitHub Actions construindo a imagem e executando os testes nos PRs. |
-| Preparação de produção — atual | Gunicorn, DEBUG=false, estáticos coletados e verificações de produção no CI. |
-| AWS e Terraform | Escolha dos recursos e custos, acesso à conta, infraestrutura definida por código e plano revisável. |
-| Configuração com Ansible | Servidor Linux preparado para executar os containers, com configuração reproduzível. |
-| Primeiro deploy | Aplicação, Worker e Beat funcionando na AWS, banco persistente, HTTPS e fluxos reais verificados. |
-| CD e recuperação | Imagens versionadas, implantação automatizada e procedimento para voltar à versão anterior. |
-| Operação e revisão | Logs, backups com restauração verificada, limites de custo, segurança e pendências OpenAPI/fuso horário revisadas. |
-| Fechamento da V1 | README, arquitetura, documentação da API e roteiro de demonstração reproduzível. |
+| `requirements-production.txt` | Adds production runtime dependencies to the application requirements |
+| `config/settings_production.py` | Imports base settings and configures production security and static assets |
+| `Dockerfile.production` | Builds the application image and runs `collectstatic` |
+| `compose.production-test.yaml` | Runs the production web service on `127.0.0.1:8001` |
+| `scripts/create_production_test_env.py` | Creates a private test environment without replacing `.env` |
+| `.github/workflows/ci.yml` | Automates application tests and production runtime smoke checks |
 
-A V1 estará concluída quando a aplicação hospedada funcionar por HTTPS,
-as funcionalidades existentes de carteiras e IA forem verificadas nesse
-ambiente, as entregas puderem ser repetidas e houver recuperação e documentação.
-Novas funcionalidades serão uma evolução posterior dessa versão.
+Gunicorn runs Django through WSGI. WhiteNoise serves collected static files using
+compressed, hashed assets. The production settings insert WhiteNoise into a copy
+of the base middleware list rather than changing the development list.
 
-## Arquivos desta etapa
+The image contains application code and collected static assets; it has no
+development source bind mount at `/app`. Source changes require rebuilding the
+production image. Build-time `collectstatic` uses placeholder environment values;
+actual runtime values are supplied when the container is created.
 
-| Arquivo | Função |
-| --- | --- |
-| requirements-production.txt | Reutiliza requirements.txt e acrescenta Gunicorn 26.2.0 e WhiteNoise 6.12.0. |
-| config/settings_production.py | Importa as configurações existentes e define DEBUG=false, estáticos e segurança de produção. |
-| Dockerfile.production | Constrói a imagem de produção e executa collectstatic durante a construção. |
-| compose.production-test.yaml | Executa Gunicorn na porta 8001 e conecta ao banco Docker existente. |
-| scripts/create_production_test_env.py | Gera um arquivo privado de teste com nova chave Django e valores fictícios para APIs. |
-| .github/workflows/ci.yml | Substituição completa do workflow, adicionando construção e smoke tests da imagem de produção. |
-| docs/production-local.md | Este guia. |
-
-O Dockerfile e o Compose de desenvolvimento permanecem disponíveis.
-O settings.py original e o requirements.txt continuam sendo as bases do projeto.
-
-## Conceitos
-
-Gunicorn é o processo que executa a aplicação Django por WSGI.
-WhiteNoise atende os arquivos estáticos coletados, como o CSS do admin.
-collectstatic reúne e processa os arquivos em staticfiles dentro da imagem.
-O storage utilizado também gera nomes com hash e versões comprimidas.
-
-settings_production.py importa as configurações existentes e sobrescreve as
-que precisam mudar. WhiteNoise é inserido após SecurityMiddleware em uma cópia
-da lista; o middleware de desenvolvimento não é modificado.
-
-A imagem de produção contém o código e os estáticos. Não monta a pasta do
-projeto do Mac em /app. Alterações no código exigem reconstruir essa imagem.
-Os segredos .env não são copiados para ela, conforme o .dockerignore existente.
-
-O Dockerfile fornece apenas valores fictícios à execução de collectstatic.
-Os valores reais de execução são injetados quando o container inicia.
-
-## Instalação dos arquivos completos
-
-Baixe InvestMind_Production.zip para Downloads. Na raiz do repositório,
-na branch feature/production-config, execute:
-
-```bash
-unzip -n "$HOME/Downloads/InvestMind_Production.zip" -d "$HOME/Downloads"
-
-mkdir -p config scripts docs .github/workflows
-
-cp "$HOME/Downloads/InvestMind_Production/requirements-production.txt" .
-cp "$HOME/Downloads/InvestMind_Production/Dockerfile.production" .
-cp "$HOME/Downloads/InvestMind_Production/compose.production-test.yaml" .
-cp "$HOME/Downloads/InvestMind_Production/config/settings_production.py" config/
-cp "$HOME/Downloads/InvestMind_Production/scripts/create_production_test_env.py" scripts/
-cp "$HOME/Downloads/InvestMind_Production/.github/workflows/ci.yml" .github/workflows/
-cp "$HOME/Downloads/InvestMind_Production/docs/production-local.md" docs/
-```
-
-Se o download tiver outro nome ou destino, ajuste o primeiro comando.
-O ci.yml é o arquivo completo atualizado, e substitui a versão desta conversa.
-
-## Teste local, um comando por vez
-
-Mantenha o Docker Desktop aberto e use a raiz do projeto como diretório atual.
-Confirme o banco e o Redis do desenvolvimento:
+## Start the shared data services
 
 ```bash
 docker compose up -d --wait db redis
 ```
 
-Crie o ambiente privado de teste:
+This verification uses the development database rather than an isolated copy.
+Use demonstration data and retain the existing database credentials. Apply any
+pending application migrations using the development workflow before inspecting
+database-backed pages.
+
+## Prepare the private test environment
 
 ```bash
 python scripts/create_production_test_env.py
 ```
 
-O script mantém o .env original, cria .env.production-test com permissões 600
-e não imprime os valores. Se o arquivo de teste já existe, ele o preserva.
-As credenciais do banco são as mesmas do ambiente Docker existente.
-Uma chave Django nova e longa é gerada para satisfazer as verificações de
-produção. As chaves efetivas de OpenAI e Alpha Vantage são substituídas por
-valores fictícios para este teste.
+The helper reads `.env` and creates `.env.production-test` with permissions `0600`.
+It retains the database credentials, generates a new Django key, and supplies
+placeholder provider keys. The source `.env` remains unchanged. If the test file
+already exists, it is preserved rather than refreshed automatically.
 
-As regras atuais de .gitignore e .dockerignore excluem .env.production-test.
+Both environment files are excluded from Git and the Docker build context.
+Keep the local production test environment separate from the server's production
+environment files.
 
-Confira o Compose e construa a imagem:
+## Validate and build
 
 ```bash
 docker compose --project-name investmind-ai-production-test -f compose.production-test.yaml config --quiet
 docker compose --project-name investmind-ai-production-test -f compose.production-test.yaml build web
 ```
 
-Durante a construção, procure a conclusão de collectstatic. Se ele indicar
-arquivo estático ausente ou qualquer outro erro, pare e envie o erro antes
-de continuar. Não envie o conteúdo de arquivos .env.
+The build must complete successfully, including `collectstatic`. Inspect any build
+failure before starting the container. Use `config --quiet` to validate without
+printing resolved secret values.
 
-Inicie o Gunicorn e confira o estado e os logs:
+## Start Gunicorn and inspect the runtime
 
 ```bash
 docker compose --project-name investmind-ai-production-test -f compose.production-test.yaml up -d --wait --wait-timeout 120 web
@@ -121,101 +73,90 @@ docker compose --project-name investmind-ai-production-test -f compose.productio
 docker compose --project-name investmind-ai-production-test -f compose.production-test.yaml logs --tail=50 web
 ```
 
-O serviço web deve ficar healthy. Nos logs, procure a inicialização do Gunicorn
-e seus workers. Esses workers HTTP são diferentes do Celery Worker.
+The web service should become healthy and the logs should show Gunicorn starting.
+Gunicorn HTTP workers are separate from Celery workers.
 
-Confira que a configuração utilizada é a de produção e DEBUG está desativado:
+Check the selected settings module and debug flag:
 
 ```bash
 docker compose --project-name investmind-ai-production-test -f compose.production-test.yaml exec web python manage.py shell -c 'from django.conf import settings; print(settings.SETTINGS_MODULE); print("DEBUG:", settings.DEBUG)'
 ```
 
-O resultado deve incluir config.settings_production e DEBUG: False.
+Expected values are `config.settings_production` and `DEBUG: False`.
 
-Verifique a página do admin e seu CSS:
+## Verify the admin page and static assets
 
 ```bash
 curl --fail --silent --show-error --output /dev/null http://127.0.0.1:8001/admin/login/
 curl --fail --silent --show-error --output /dev/null http://127.0.0.1:8001/static/admin/css/base.css
 ```
 
-Esses comandos podem terminar sem saída; curl retorna erro se a resposta falhar.
-Abra http://127.0.0.1:8001/admin/ e confira que os estilos carregam e você
-consegue entrar com o usuário existente. O banco é compartilhado com o
-desenvolvimento, então não precisa criar outro superusuário.
+These commands can finish without output on success. Open
+[the local production admin](http://127.0.0.1:8001/admin/) to inspect the styles and
+sign in with an existing development user.
 
-A nova chave de sessão pode exigir novo login ao alternar entre as portas
-8000 e 8001. Use dados de demonstração neste banco local.
+The database is shared with development, so a second superuser is unnecessary.
+The distinct Django key can invalidate a session when switching between the local
+development and production-test services. Cookies also share the same hostname
+across ports; a fresh login may be needed.
 
-## Limites do teste local
-
-Esta etapa verifica Gunicorn, configurações e estáticos. Não inicia um novo
-Celery Worker nem outro Beat. O cache usa o banco lógico 3 do Redis e a fila
-usa o banco lógico 4, separados dos bancos lógicos 1 e 2 do desenvolvimento.
-As tarefas desse ambiente de verificação não devem ser consumidas pelo Worker
-de desenvolvimento. Os fluxos reais de IA e tarefas serão verificados com os
-serviços e as credenciais do ambiente hospedado.
-
-O modo DJANGO_LOCAL_PRODUCTION_TEST=true libera HTTP e cookies locais somente
-para hosts de loopback. O Compose deste teste publica a porta em 127.0.0.1.
-Na configuração padrão de produção, esse modo fica false, HTTPS é obrigatório
-e os cookies são Secure. O arquivo de teste não é a configuração do deploy AWS.
-
-SECURE_HSTS_INCLUDE_SUBDOMAINS e SECURE_HSTS_PRELOAD permanecem false até
-definirmos o domínio e sua política de HTTPS. check --deploy pode emitir os
-avisos correspondentes. A confiança em X-Forwarded-Proto só será habilitada
-quando configurarmos um proxy confiável que controle esse cabeçalho.
-
-Não é necessário repetir manualmente a suíte sem novas alterações no backend:
-o PR executará os testes existentes e as novas verificações de produção no CI.
-
-## Git e primeira execução do CI ampliado
-
-Depois que as verificações locais passarem:
+## Check strict production settings separately
 
 ```bash
-git status --short --branch
-git add requirements-production.txt Dockerfile.production compose.production-test.yaml config/settings_production.py scripts/create_production_test_env.py .github/workflows/ci.yml docs/production-local.md
-git diff --cached --check
-git diff --cached --stat
-git commit -m "Prepare Django production runtime"
-git push -u origin feature/production-config
+docker compose --project-name investmind-ai-production-test -f compose.production-test.yaml run --rm --no-deps -e DJANGO_LOCAL_PRODUCTION_TEST=false web python manage.py check --deploy
 ```
 
-O arquivo .env.production-test não deve aparecer no status ou no commit.
-Abra um PR de feature/production-config para develop. O workflow agora verifica
-a imagem de desenvolvimento, as migrações e os testes, e também constrói a
-imagem de produção, inicia Gunicorn e consulta o admin e o CSS por HTTP local.
+This checks strict settings in a one-off container; it does not configure a TLS
+endpoint for the local web service. Inspect errors and assess warnings rather
+than treating every warning as an execution failure. The project retains
+`SECURE_HSTS_INCLUDE_SUBDOMAINS=False` and `SECURE_HSTS_PRELOAD=False` until a
+deliberate domain-wide HTTPS policy is established. Existing OpenAPI schema
+warnings may also appear.
 
-No CI, DEVELOPMENT_NETWORK aponta para a rede temporária investmind-ci_default.
-O banco de teste do Django é separado. A verificação do Gunicorn usa o banco
-temporário da aplicação do CI, que recebeu as migrações antes.
+## Isolation and security boundaries
 
-Os dados do CI são descartados. A limpeza remove primeiro o web de produção
-e depois o PostgreSQL/Redis temporários. Os volumes do Mac não participam.
+- `DJANGO_LOCAL_PRODUCTION_TEST=true` allows HTTP and non-secure cookies only for
+  loopback hosts. The Compose file publishes the web port on `127.0.0.1`.
+- Strict production defaults require HTTPS and secure cookies. The AWS helper
+  explicitly sets local production testing to false.
+- The local test does not trust forwarded proxy headers. The AWS deployment
+  enables that trust behind Caddy, which controls the forwarded scheme header.
+- Cache uses Redis database 3 and the broker uses database 4, separate from the
+  development cache and broker databases 1 and 2.
+- This Compose file starts only the production web service. It does not start
+  matching Celery worker or Beat processes, and provider keys are placeholders.
+  It does not validate live AI or background job execution.
+- The default external Docker network is `investmind-ai-local_default`.
+  `DEVELOPMENT_NETWORK` can select the temporary equivalent used in CI.
 
-Antes de integrar o PR, confira o resultado das novas etapas. Se uma falhar,
-envie o nome da etapa e o erro relevante para corrigirmos.
+## CI behavior
 
-## Parar o teste local
+The test job builds the development image, starts temporary PostgreSQL and Redis,
+applies migrations, checks for missing migrations and runs the Django suite.
+It also runs infrastructure helper tests, builds the production image, checks
+strict production settings and performs Gunicorn/admin/static HTTP smoke checks.
+
+The production smoke service joins the CI development network and uses CI
+environment values. Those databases and volumes belong to the temporary runner;
+the Mac's volumes do not participate. The workflow cleans up its temporary
+resources after the checks.
+
+The separate publish job builds and checks a native ARM64 image before publishing
+eligible commits. See [registry delivery](registry-delivery.md) for triggers and
+the operator-initiated deployment procedure.
+
+## Stop the local verification service
 
 ```bash
 docker compose --project-name investmind-ai-production-test -f compose.production-test.yaml down
 ```
 
-O banco e o Redis compartilhados continuam disponíveis no ambiente local.
+The shared development database and Redis services remain available. This command
+does not stop the AWS instance or remove development data volumes.
 
-## Validação e referências
+## Validation record
 
-Os arquivos foram conferidos quanto à sintaxe Python, YAML e shell, geração
-segura do arquivo de teste, isolamento de fila/cache, configuração de rede
-e consistência do CI. O repositório completo e o Docker Engine do Mac não
-estão neste ambiente; o build e as respostas HTTP precisam ser confirmados
-pelos comandos acima e pela primeira execução do PR.
-
-- https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
-- https://whitenoise.readthedocs.io/en/stable/django.html
-- https://gunicorn.org/reference/settings/
-- https://pypi.org/project/gunicorn/
-- https://pypi.org/project/whitenoise/
-- https://docs.docker.com/compose/how-tos/networking/
+The production image build, `DEBUG=False`, Gunicorn startup and successful admin
+and CSS responses have been verified on the Mac and in CI. Live HTTPS and provider
+integration checks are recorded separately in
+[functional validation](functional-validation-review.md).

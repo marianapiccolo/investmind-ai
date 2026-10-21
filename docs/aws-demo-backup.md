@@ -1,180 +1,164 @@
-# Backup e teste de restauração do InvestMind AI
+# Database backup and restore verification
 
-Todos os comandos deste guia são executados no Mac, dentro do projeto.
-O script acessa a EC2 por SSH somente no comando `backup`.
-O comando `verify` trabalha exclusivamente no Docker local, sem consultar a AWS.
+The database backup tool exports the AWS demo PostgreSQL database to the Mac and
+tests restoration in a disposable local database. Run all commands in this guide
+from the repository root in the **Mac terminal**.
 
-## O que estamos protegendo
+`backup` connects to EC2 over SSH. `verify` uses local Docker and does not query or
+modify AWS. A first-time download of the local database image may require internet
+access before the isolated restoration container is started.
 
-O código está no Git. Os registros de usuários, ativos, carteiras, posições,
-transações, relatórios e conhecimento estão no PostgreSQL da EC2.
-Um volume mantém esses dados entre reinicializações; um backup permite recuperá-los
-em outro banco. Nesta etapa vamos exportar o banco e testar a recuperação local.
+## Protected data and prerequisites
 
-Usamos `pg_dump --format=custom`, que exporta uma visão consistente do banco e
-comprime o arquivo. `pg_restore` recupera estrutura e dados desse formato.
-Não execute um deploy/migrations ao mesmo tempo que o backup.
+Git stores application code; PostgreSQL stores users, assets, portfolios,
+positions, transactions, reports, conversations and financial knowledge. A Docker
+volume retains records across container recreation. A database backup provides a
+separate recovery copy.
 
-## Arquivos desta entrega
+The tool uses the Python standard library together with AWS CLI, Terraform, SSH
+and Docker. Its files are:
 
-- `scripts/demo_database_backup.py`: exportação e teste de restauração.
-- `scripts/tests/test_demo_database_backup.py`: testes offline da lógica do script.
-- `docs/aws-demo-backup.md`: este guia.
-- `docs/aws-demo-operations.md`: rotina de apresentação e de atualização do site.
+- `scripts/demo_database_backup.py` for export and restoration verification.
+- `scripts/tests/test_demo_database_backup.py` for offline helper tests.
 
-O script usa somente a biblioteca padrão do Python, além dos programas já usados
-no projeto: AWS CLI, Terraform, SSH e Docker. Nenhum pacote Python novo é necessário.
+The export uses `pg_dump --format=custom`. Do not run deployment migrations at the
+same time as the export. Follow [AWS operations](aws-demo-operations.md) to start
+the instance, update access and verify its SSH host key. PostgreSQL must be running;
+HTTPS and image rebuilding are not required for backup.
 
-## 1. Preparar o código no Mac
-
-Depois do merge do PR de deploy e com `git status --short` limpo:
+## Export the database
 
 ```bash
-cd ~/Documentos/GitHub/investmind-ai
-source .venv/bin/activate
-git switch develop
-git pull --ff-only origin develop
-git switch -c feature/database-backup
+python scripts/demo_database_backup.py backup
 ```
 
-Copie os quatro arquivos do ZIP para suas pastas correspondentes no projeto.
-Eles são arquivos novos; não substituem Dockerfiles, Compose ou dados existentes.
+The script verifies account `990861495140`, region `us-east-1`, Terraform outputs,
+instance identity, VPC, tags, registered SSH key and running state. The SSH host key
+must already be trusted. The script does not accept a new host key automatically.
+
+The export uses PostgreSQL 18 and the release referenced by
+`/opt/investmind/current`. The dump streams from the database container through
+SSH to the Mac; no large intermediate dump is written to the EC2 disk. Database
+credentials remain in the container environment. The tool does not print or copy
+the server's environment files.
+
+Each export creates a new directory under:
+
+```text
+~/.local/share/investmind/backups/TIMESTAMP-IDENTIFIER/
+```
+
+The directory contains `database.dump` and `metadata.json`. Directory permissions
+are `0700`; file permissions are `0600`. Backups remain outside Git and outside
+the cache directory.
+
+The dump includes password hashes and may include private conversations. File
+permissions restrict local access but do not encrypt the archive. Keep the full
+backup private and do not attach it to issues or public support messages.
+
+Metadata records the source, application revision, archive size and SHA-256
+checksum. The checksum detects accidental changes; it is not a digital signature
+and does not prevent coordinated modification of both files.
+
+The script removes an incomplete export on a handled failure. A completed export
+must still pass an actual restoration test.
+
+## Verify restoration locally
+
+Keep Docker Desktop running:
+
+```bash
+python scripts/demo_database_backup.py verify latest
+```
+
+`latest` selects the newest complete backup in the local backup directory. A
+specific `database.dump` path can be supplied instead. The script verifies the
+archive size and checksum before starting a container.
+
+The restoration uses `pgvector/pgvector:0.8.7-pg18-bookworm`, matching the deployed
+database image. The temporary container:
+
+- Has a unique name, network mode `none` and no published ports.
+- Uses a new database named `restorecheck`, separate from development and AWS.
+- Has a one-CPU and 1 GB memory limit for the small demo database.
+- Receives the archive through standard input, without mounting Mac directories.
+- Runs `pg_restore --single-transaction --exit-on-error --no-owner --no-privileges`.
+- Checks the vector extension, migrations and readability of the main tables.
+- Is removed with its anonymous volumes after completion or a handled failure.
+
+The archive's constraints and indexes are restored by PostgreSQL. Printed record
+counts describe the restored snapshot; they are not a comparison with the live
+AWS database, which may have changed after the export began.
+
+Expected success message:
+
+```text
+RESTORE TEST PASSED. The temporary database was removed.
+```
+
+The backup directory then contains `verification.json` with the date, image and
+restored counts. The original dump remains unchanged. The test does not start
+Django or exercise web login, AI or Celery against the restored database.
+
+If Docker or the Mac is forcibly stopped, cleanup may not run. Identify test
+containers by their label:
+
+```bash
+docker ps -a --filter label=investmind.restore-check=true
+```
+
+If cleanup is needed, remove only the confirmed test container ID with
+`docker rm -f -v TEST_CONTAINER_ID`. Do not remove the project's Compose containers
+or volumes as part of restoration-test cleanup.
+
+## Stop the AWS source
+
+After the export succeeds, EC2 can be stopped using the commands in
+[AWS operations](aws-demo-operations.md#stop-and-confirm). The local `verify`
+command works while EC2 is stopped. Ending an SSH connection alone does not stop
+the instance.
+
+## Helper tests
 
 ```bash
 python -m unittest discover -s scripts/tests -p test_demo_database_backup.py -v
 python scripts/demo_database_backup.py --help
 ```
 
-Esses testes usam simulações de AWS, SSH e Docker. Eles NÃO fazem uma exportação
-ou restauração real. Essa validação acontece nos passos 3 e 4.
+These tests simulate AWS, SSH and Docker operations. They validate helper behavior
+and failure paths; they do not perform a real database export or restoration.
+The current CI workflow includes the infrastructure helper tests.
 
-## 2. Preparar o acesso à EC2
+## Recovery scope and limitations
 
-Siga `docs/aws-demo-operations.md` até confirmar a conexão SSH.
-Para fazer somente o backup, não é necessário reconstruir a imagem da aplicação
-nem executar um deploy para configurar o HTTPS do IP novo. O backup usa SSH.
-O PostgreSQL precisa estar funcionando na EC2.
+This is a manual logical backup of one database. It does not provide continuous
+recovery, point-in-time recovery (PITR), scheduled backups or automatic retention.
+It excludes PostgreSQL cluster roles, environment files, API keys, the Django
+secret key, SSH keys, Terraform state, filesystem uploads and pending Redis data.
 
-## 3. Exportar e guardar no Mac
+Django users and password hashes are table data and are included. PostgreSQL
+cluster roles are separate objects. Restoration uses the destination owner, which
+is why original ownership and privileges are not reapplied.
 
-```bash
-python scripts/demo_database_backup.py backup
-```
+A real recovery requires a suitable destination, restoration of the selected
+archive, independent secret configuration and application validation before
+traffic is switched. The tool deliberately provides no command to overwrite the
+live AWS database. Returning to an older application image does not restore data
+or reverse migrations.
 
-O script verifica a conta `990861495140`, a região `us-east-1`, os outputs do
-Terraform e os dados da instância na AWS. Exige as tags e a chave do InvestMind,
-instância ligada e chave SSH do host já confiada. Não aceita hosts novos sozinho.
-Usa PostgreSQL 18 e a release apontada por `/opt/investmind/current`.
+The Mac backup separates the copy from EC2 but still depends on that computer.
+An additional private encrypted copy can preserve `database.dump`, `metadata.json`
+and, when available, `verification.json` together. Retention and deletion remain
+operator responsibilities.
 
-O dump sai diretamente do container PostgreSQL pela conexão SSH e é escrito no Mac.
-Não é criado um arquivo grande no disco da EC2 e a senha PostgreSQL permanece no
-ambiente do container. O script não imprime nem copia `app.env` ou `db.env`.
+## Recorded validation
 
-Cada execução cria uma pasta nova, por exemplo:
+The local restoration test completed successfully for the 21 October 2026 demo
+snapshot, including PostgreSQL/pgvector, 26 migration records, one user, one asset,
+two portfolios, two positions, seven transactions and 31 knowledge chunks. These
+counts describe that snapshot, not required counts for future backups.
 
-```text
-~/.local/share/investmind/backups/20261017T230000Z-1234abcd/
-    database.dump
-    metadata.json
-```
+## References
 
-A pasta tem permissão 700; os arquivos, 600. Essa localização fica fora do Git e
-fora de pastas de cache. O dump contém dados do banco, inclusive hashes de senhas
-e eventuais conversas de IA: mantenha-o privado e não envie o conteúdo ao chat.
-Essas permissões controlam o acesso local; não são criptografia do arquivo.
-
-`metadata.json` registra a versão da aplicação, a origem, o tamanho e o SHA256.
-O SHA256 permite detectar alterações acidentais no dump. Não é uma assinatura
-digital e não protege contra alguém que consiga alterar dump e metadados juntos.
-
-Se houver erro durante a exportação, o arquivo parcial é descartado. O script
-só anuncia o backup depois de receber um arquivo PostgreSQL e salvar metadados.
-Ainda assim, exportar é apenas a primeira metade: execute a restauração real.
-
-## 4. Restaurar em um banco temporário no Mac
-
-Abra o Docker Desktop e execute:
-
-```bash
-python scripts/demo_database_backup.py verify latest
-```
-
-`latest` seleciona o backup completo mais recente nessa pasta do Mac. Para escolher
-um backup específico, informe o caminho de `database.dump` no lugar de `latest`.
-O script confere tamanho e SHA256 antes de iniciar qualquer container.
-
-Usamos `pgvector/pgvector:0.8.7-pg18-bookworm`, a mesma imagem de banco definida
-no deploy. Se ela não existir no Mac, o Docker precisará baixá-la uma vez.
-O container de teste:
-
-- tem nome aleatório próprio e rede `none`, sem portas publicadas;
-- usa um banco novo chamado `restorecheck`, sem ligação aos bancos existentes;
-- tem limite de 1 GB de memória e uma CPU, adequado ao pequeno banco de demonstração;
-- recebe o dump pelo stdin, sem montar pastas do Mac;
-- executa `pg_restore --single-transaction --exit-on-error --no-owner --no-privileges`;
-- verifica a extensão vector, as migrations e a leitura das tabelas principais;
-- é removido, com seus volumes anônimos, ao terminar ou se ocorrer uma falha tratável.
-
-As restrições e os índices incluídos no dump são restaurados pelo PostgreSQL.
-Os números mostrados são contagens no banco restaurado, não uma comparação com
-o banco remoto naquele instante. A aplicação pode ter recebido novos registros
-depois do início do dump.
-
-O resultado esperado é:
-
-```text
-RESTORE TEST PASSED. The temporary database was removed.
-```
-
-A pasta do backup passa a conter `verification.json`, com data, imagem e contagens.
-O dump original é mantido. O teste não altera a AWS nem o banco de desenvolvimento.
-Ele comprova a restauração do banco; não inicia o Django nem testa login/IA no banco
-temporário. O fluxo web já tem seus próprios testes e verificações de deploy.
-
-Se o Docker parar ou o computador desligar à força, o cleanup pode não executar.
-Identifique SOMENTE os containers criados por este teste:
-
-```bash
-docker ps -a --filter label=investmind.restore-check=true
-```
-
-Se algum tiver sobrado, remova seu ID específico com `docker rm -f -v ID_DO_TESTE`.
-Não remova volumes ou containers do Compose do projeto para limpar esse teste.
-
-## 5. Parar a EC2 e registrar o código
-
-Depois que o comando `backup` terminar, a EC2 pode ser parada. O `verify` usa só o
-Mac e funciona com a EC2 desligada. Use os comandos de parada do guia de operação.
-
-Registre no Git somente os quatro arquivos desta entrega. O dump e os relatórios
-locais ficam fora do repositório. Depois dos testes reais, faça commit, push e PR
-de `feature/database-backup` para `develop`. A CI atual verifica a aplicação;
-os testes desta ferramenta são executados pelo comando separado acima.
-
-## Limites e recuperação de um incidente
-
-Este é um backup lógico manual de UM banco, apropriado ao nosso demo pequeno.
-Ele não é recuperação contínua/PITR. Não inclui roles do cluster, arquivos de
-ambiente, chaves de API, chave Django, chave SSH, estado Terraform, uploads em disco
-ou conteúdo pendente do Redis. Todos os dados presentes nas tabelas são exportados.
-
-A restauração usa um novo usuário dono dos objetos; por isso `--no-owner` e
-`--no-privileges` são opções da restauração. As contas Django e seus hashes fazem
-parte das tabelas; os usuários/roles do PostgreSQL são uma camada diferente.
-
-Em um incidente real, primeiro preparamos um destino novo, recuperamos o backup,
-reconfiguramos segredos e validamos a aplicação antes de apontá-la ao banco recuperado.
-Esse procedimento depende do destino e da versão de código escolhidos. Esta entrega
-não implementa um comando que sobrescreve o banco da AWS.
-
-Uma cópia no Mac já separa o backup da EC2. Ela ainda depende desse computador.
-Para uma segunda cópia, use armazenamento privado com criptografia e preserve juntos
-`database.dump`, `metadata.json` e, quando existente, `verification.json`.
-Não há retenção ou exclusão automática: acompanhe o espaço ocupado e mantenha as
-versões que precisar. Um teste não substitui verificar backups novos periodicamente.
-
-## Referências
-
-- https://www.postgresql.org/docs/18/app-pgdump.html
-- https://www.postgresql.org/docs/18/app-pgrestore.html
-- https://docs.docker.com/reference/cli/docker/container/run/
+- [PostgreSQL 18 pg_dump](https://www.postgresql.org/docs/18/app-pgdump.html)
+- [PostgreSQL 18 pg_restore](https://www.postgresql.org/docs/18/app-pgrestore.html)

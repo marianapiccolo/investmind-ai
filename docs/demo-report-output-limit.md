@@ -1,65 +1,97 @@
-# Demo report output budget and risk presentation
+# Report output budget and risk presentation
 
-## Observed configuration
+## Observed failure and confirmed result
 
-On 2026-10-21 the AWS application reported:
+On 21 October 2026, the AWS application reported model `gpt-5.6-terra`,
+`OPENAI_MAX_OUTPUT_TOKENS=1200` and `OPENAI_TIMEOUT_SECONDS=30`. Report 6 failed
+with the output-limit-specific public message. This identifies that failure;
+it does not establish the cause of the earlier report 4 failure.
 
-- Model: `gpt-5.6-terra`
-- `OPENAI_MAX_OUTPUT_TOKENS=1200`
-- `OPENAI_TIMEOUT_SECONDS=30`
+The server output limit was changed to `4096`, the application services were
+recreated, and Django reported the new value. Report 7 then completed and passed
+the automated evaluation. Its risk section preserved period return and maximum
+drawdown and explained the absence of annualized risk metrics.
 
-Report 6 was marked FAILED with the new output-limit-specific public message.
-This identifies this particular failure; it does not establish the cause of the
-older report 4 failure.
+The successful request validates the observed case. It does not guarantee that
+every future response will fit the configured budget or pass evaluation.
 
-## Runtime adjustment
+## Configuration behavior
 
-Test `OPENAI_MAX_OUTPUT_TOKENS=4096` in `/opt/investmind/shared/app.env`.
-This remains a generation ceiling, not a requirement to generate that many tokens.
-A higher ceiling permits greater token consumption. Test one new report before
-making further changes. Keep the model and timeout unchanged for this experiment.
+`OPENAI_MAX_OUTPUT_TOKENS` is a generation ceiling rather than a required response
+length. The API output budget includes generated reasoning tokens and visible
+output. Reaching it can produce an incomplete response before a complete report
+is available. A larger limit permits more output consumption.
 
-Validation result on 2026-10-21: the application loaded `4096` after recreating
-the three application services. Report 7 completed and passed its automated
-evaluation. Its risk section preserved the period return and maximum drawdown
-and explained why annualized risk metrics were unavailable. This validates the
-observed case; it does not guarantee every future report will fit this budget.
+The value is stored in `/opt/investmind/shared/app.env`, separate from the image.
+The model and timeout were not changed during this adjustment. The environment
+helper preserves this additional entry during subsequent deployments, but a new
+or replacement host needs its own configuration.
 
-Use the existing root-owned environment helper's `read_env` and `write_env`
-functions to preserve other environment values and its atomic write/0600 behavior.
-Recreate `web`, `worker` and `beat` after changing the file: existing processes do
-not reload a container's environment just because the file on disk changed.
-The database, Redis and proxy services do not need to be recreated for this setting.
+Changing the file does not update the environment of existing containers.
+Recreate `web`, `worker` and `beat` after editing; a process restart alone does not
+replace the container's configured environment values.
 
-The existing deployment helper preserves this extra environment entry on later
-deploys. This is per-environment runtime configuration; it is not baked into a new
-image. Configure it independently on any replacement host or new environment.
+## Update an existing host
 
-Official reference:
-https://developers.openai.com/api/docs/guides/reasoning#controlling-costs
+Follow [AWS operations](aws-demo-operations.md) to establish a verified SSH
+connection. Run the following **inside EC2**, not in the Mac shell. The command
+uses the installed helper to preserve other entries and its atomic-write and
+`0600` permission behavior:
 
-The output budget includes generated reasoning tokens and visible output. A report
-with structured JSON/evidence can hit the budget before it is complete. Raising
-the budget is a testable adjustment, not a guarantee that every report will fit.
+```bash
+sudo python3 - <<'PY'
+from pathlib import Path
+import runpy
 
-## Template changes
+helper = runpy.run_path('/opt/investmind/bin/manage_demo_env.py')
+path = Path('/opt/investmind/shared/app.env')
+if not path.is_file():
+    raise SystemExit('Existing app.env not found.')
 
-The complete `portfolios/templates/portfolios/risk.html` file now:
+values = helper['read_env'](path)
+values['OPENAI_MAX_OUTPUT_TOKENS'] = '4096'
+helper['write_env'](path, values)
+print('Report output budget set to 4096.')
+PY
+```
 
-- Shows `Unavailable` instead of a bare percent sign for null annualized metrics.
-- Displays the backend-provided reason for unavailable annualization.
-- Preserves zero as a numeric value (`0.00%`).
-- Chooses the sign and CSS class of best/worst period cards from the actual value.
+Recreate the application services, also **inside EC2**:
+
+```bash
+sudo docker compose --env-file /opt/investmind/shared/deployment.env --file /opt/investmind/current/compose.production.yaml up -d --no-deps --force-recreate --wait --wait-timeout 180 web worker beat
+```
+
+Check the effective setting without printing secrets:
+
+```bash
+sudo docker compose --env-file /opt/investmind/shared/deployment.env --file /opt/investmind/current/compose.production.yaml exec -T web python manage.py shell -c 'from django.conf import settings; print("Output limit:", settings.OPENAI_MAX_OUTPUT_TOKENS)'
+```
+
+The expected value is `4096`. The database, Redis and proxy services do not need
+to be recreated for this setting. Generate one new report to validate the change;
+existing failed reports retain their original saved state and message. Review a
+new failure and its worker logs before repeatedly retrying.
+
+## Risk presentation
+
+The risk template now:
+
+- Displays `Unavailable` for null annualized metrics rather than a bare `%`.
+- Shows the backend's reason for unavailable annualization.
+- Preserves numeric zero as `0.00%`.
+- Chooses the sign and CSS class of the best/worst period cards from their values.
 - Preserves the portfolio selector, chart data, script includes and empty states.
 
-No backend calculations or database records are changed by this template patch.
+The template change does not alter calculations or database records. The existing
+chart JavaScript was not changed; card formatting and chart styling are separate
+presentation responsibilities.
 
-Five template tests cover null metrics, zero metrics, negative best periods,
-positive worst periods, and neutral zero periods. They render the real template
-with a small base-template stub. They do not assert the complete app's visual
-layout or execute the existing chart JavaScript.
+Five template tests cover null metrics, zero metrics, a negative best period,
+a positive worst period and neutral zero periods. They render the real template
+with a small base-template stub. They do not execute chart JavaScript or verify
+the complete browser layout.
 
-Run in the project's Docker environment:
+Run the targeted suite **on the Mac**:
 
 ```bash
 docker compose run --rm web python manage.py test \
@@ -67,6 +99,21 @@ docker compose run --rm web python manage.py test \
   portfolios.tests.test_web_risk
 ```
 
-For publication use a separate branch, PR and the normal CI/image/deploy flow.
-A locally edited template does not change the existing AWS image. Confirm the
-updated display after deploying the newly published image.
+Nine targeted tests passed in the project environment. After merge, publication
+and registry deployment, browser inspection confirmed the unavailable labels,
+explanatory banner, negative best-period card and preserved return/drawdown.
+
+## Publication and remaining presentation work
+
+Template changes follow the normal branch, pull request, CI, image publication
+and registry deployment workflow. Editing a local template does not modify an
+already deployed image. Runtime configuration changes and image releases have
+separate lifecycles.
+
+Locale-consistent grouping and decimal separators for large return values remain
+a separate pending presentation task. The current demo uses test transaction
+prices; formatting changes do not validate or change the computed magnitude.
+
+## Reference
+
+- [OpenAI output-budget and incomplete-response behavior](https://developers.openai.com/api/docs/guides/reasoning#controlling-costs)

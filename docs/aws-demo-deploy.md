@@ -1,227 +1,182 @@
-# InvestMind AI: primeiro deploy público na EC2
+# AWS deployment by image archive
 
-Este guia registra o primeiro deploy, com build da imagem no Mac e envio por SSH.
-O fluxo atual de entrega pelo GHCR está em `docs/registry-delivery.md`, e a rotina
-atual de apresentação está em `docs/aws-demo-operations.md`. O método original
-abaixo continua disponível como alternativa.
+This guide documents the alternative deployment method that builds an application
+image on the Mac and transfers an archive over SSH. The primary delivery method is
+now [private registry delivery](registry-delivery.md). Routine access and shutdown
+procedures are maintained in [AWS operations](aws-demo-operations.md).
 
-## O que vamos colocar no servidor
+## Deployment architecture
 
-A imagem de produção já foi testada no Mac e no CI. Esta etapa constrói uma
-versão COMMITADA da aplicação para Linux ARM64 no Mac e a transfere por SSH.
-Ansible carrega a imagem na EC2, prepara variáveis, inicia PostgreSQL e Redis,
-aplica migrations e inicia Django/Gunicorn, Celery Worker, Celery Beat e Caddy.
+The production image runs Django through Gunicorn. Celery worker and Beat use the
+same application image with separate commands. PostgreSQL/pgvector and Redis store
+data in named Docker volumes. Caddy receives HTTPS on the public address and
+forwards requests to `web:8000`.
 
-O navegador acessa Caddy por HTTPS na porta 443. Caddy encaminha a requisição
-para web:8000. Só Caddy publica portas no host. PostgreSQL e Redis não publicam
-portas. Os serviços de aplicação usam redes Docker para comunicação interna.
-Usamos as configurações estritas de produção: DEBUG=False, cookies seguros,
-redirecionamento HTTPS e cabeçalho de proxy controlado pelo Caddy.
+Only Caddy publishes host ports for the web entry point. Database and Redis ports
+remain internal. Django uses strict production settings with `DEBUG=False`, secure
+cookies, HTTPS redirection and proxy-header trust enabled for the controlled
+Caddy proxy.
 
-O banco da AWS é NOVO e separado do banco local. Usuários, carteiras e dados
-do Mac não são copiados. Criaremos um superuser novo depois da implantação.
-O diretório /opt/investmind/current aponta para a versão que passou nos testes.
+The AWS database is separate from the Mac database. First deployment initializes
+an empty database; subsequent deployments retain its existing records and users.
 
-## HTTPS sem comprar domínio
+## HTTPS on the public IP
 
-O endereço será https://IP_PUBLICO_ATUAL/. Caddy solicita um certificado
-Let’s Encrypt para esse IP usando o perfil shortlived e o renova enquanto
-o servidor está funcionando. O default_sni evita selecionar o IP privado
-do container quando o navegador acessa um IP sem enviar SNI.
+The demo uses `https://CURRENT_PUBLIC_IP/` without a purchased domain or reserved
+Elastic IP. Caddy requests a Let's Encrypt IP certificate using the `shortlived`
+profile. That profile has a 160-hour certificate lifetime, so a long stopped period
+may require new issuance after startup.
 
-Os certificados de IP duram aproximadamente seis dias. Depois de semanas
-com a EC2 parada, ao ligar novamente pode ser necessário aguardar a emissão
-de um certificado novo. Se o IP mudou, execute novamente o inventário e o
-playbook de deploy, que atualiza os hosts Django, CSRF e o proxy. Não basta
-substituir o IP na barra do navegador, porque a configuração anterior precisa
-ser atualizada. Não use --insecure ou aceite certificados inválidos no navegador.
+The Caddyfile sets `default_sni` to the demo public address for TLS clients that
+omit SNI. When the address changes, redeployment updates Caddy, Django allowed
+hosts and CSRF origins. Updating only the browser URL does not update those
+settings. Certificate validation remains enabled during HTTPS checks.
 
-Esta configuração não compra domínio, reserva Elastic IP ou cria load balancer.
-Os custos EC2, IPv4, EBS, tráfego e eventuais chamadas de API continuam existindo.
-Imagens, arquivos exportados e volumes ocupam espaço no disco; não estamos
-configurando retenção automática de versões nem backup remoto nesta etapa.
+## Prerequisites
 
-## 1. Branch e arquivos (Mac)
+- A committed, clean application checkout.
+- Docker Desktop on the Mac.
+- The configured AWS profile, Terraform state and dedicated SSH key.
+- Ansible installed in `~/.venvs/investmind-ansible`.
+- An Ubuntu ARM64 EC2 host prepared by `infra/ansible/prepare-server.yml`.
 
-Com o PR Ansible integrado e o repositório limpo:
+The deployment files are already part of the repository. No historical ZIP
+installation or feature-branch bootstrap is required.
 
-    cd ~/Documentos/GitHub/investmind-ai
-    git switch develop
-    git pull --ff-only origin develop
-    git status --short --branch
-    git switch -c feature/aws-demo-deploy
+## Build the committed application
 
-Depois de baixar o ZIP:
+Run from the repository root in the **Mac terminal**:
 
-    unzip -n "$HOME/Downloads/InvestMind_AWS_Deploy.zip" -d "$HOME/Downloads"
-    mkdir -p docker/caddy docker/postgres infra/ansible scripts docs
-    cp "$HOME/Downloads/InvestMind_AWS_Deploy/compose.production.yaml" .
-    cp "$HOME/Downloads/InvestMind_AWS_Deploy/docker/caddy/Caddyfile" docker/caddy/
-    cp "$HOME/Downloads/InvestMind_AWS_Deploy/docker/postgres/init-vector.sql" docker/postgres/
-    cp "$HOME/Downloads/InvestMind_AWS_Deploy/infra/ansible/deploy-demo.yml" infra/ansible/
-    cp "$HOME/Downloads/InvestMind_AWS_Deploy/scripts/build_demo_release.py" scripts/
-    cp "$HOME/Downloads/InvestMind_AWS_Deploy/scripts/manage_demo_env.py" scripts/
-    cp "$HOME/Downloads/InvestMind_AWS_Deploy/docs/aws-demo-deploy.md" docs/
+```bash
+source .venv/bin/activate
+git status --short --branch
+python scripts/build_demo_release.py
+```
 
-O SQL é o mesmo da infraestrutura local e é incluído para completar a entrega.
-Os arquivos anteriores de Docker, Django e Ansible permanecem como estão.
+The script builds from `git archive HEAD`; uncommitted and untracked application
+files are not included. Tracked changes cause the build helper to stop. Commit
+application changes before preparing a release, and keep deployment configuration
+consistent with the selected revision.
 
-## 2. Construir a versão no Mac antes de ligar a EC2
+The build uses `Dockerfile.production` and targets `linux/arm64`. The image tag
+contains the full commit SHA. Its compressed archive and `release.json` are stored
+under `~/.cache/investmind`, outside Git. This flow does not publish an image to a
+registry or access AWS during the build.
 
-Abra Docker Desktop. Na .venv habitual do projeto:
+## Prepare access
 
-    python scripts/build_demo_release.py
+Follow [AWS operations](aws-demo-operations.md) to authenticate, start EC2, refresh
+the inventory before applying the Terraform access plan, verify the host key and
+return to the Mac. Load the SSH key into the local agent:
 
-O script usa git archive HEAD: somente a versão commitada entra na imagem.
-Se houver alterações em arquivos rastreados, interrompe e pede revisão. Os
-novos arquivos de implantação podem estar untracked, porque são copiados
-separadamente pelo Ansible e não são necessários dentro da imagem Django.
-Alterações de funcionalidades Python precisam ser commitadas antes do build.
+```bash
+ssh-add "$HOME/.ssh/investmind_demo"
+```
 
-O build usa Dockerfile.production e --platform linux/arm64. A imagem recebe
-uma tag com o SHA do commit. O arquivo comprimido e release.json ficam em
-~/.cache/investmind, fora do Git. A imagem não é publicada em um registry.
-O Ansible verifica o SHA256 do arquivo e a identidade da imagem após o envio.
+Do not substitute a stale public IP. The inventory helper queries AWS for the
+current address and validates the configured target.
 
-Na primeira construção pode demorar vários minutos. A EC2 ainda pode ficar
-parada durante essa parte. O script não acessa a AWS nem copia o .env do Mac.
+## Deploy from the Mac
 
-## 3. Ligar a máquina e preparar o acesso (Mac)
+```bash
+"$HOME/.venvs/investmind-ansible/bin/ansible-playbook" -i "$HOME/.config/investmind/ansible-inventory.json" infra/ansible/deploy-demo.yml --syntax-check
+"$HOME/.venvs/investmind-ansible/bin/ansible-playbook" -i "$HOME/.config/investmind/ansible-inventory.json" infra/ansible/deploy-demo.yml
+```
 
-    aws sso login --profile investmind
-    aws sts get-caller-identity --profile investmind --region us-east-1 --query Account --output text
+Ansible transfers the archive, checks its checksum and image identity, loads the
+image, prepares or preserves environment values, starts data services, applies
+migrations and starts the application and proxy. HTTPS/admin CSS and Celery checks
+run before `/opt/investmind/current` is linked to the verified release.
 
-Confirme 990861495140.
+Archive transfer and certificate issuance can take several minutes. Public HTTPS
+checks use the Mac's `curl` with certificate verification enabled.
 
-    aws ec2 start-instances --profile investmind --region us-east-1 --instance-ids i-0bb284d740d01bbd5 --no-cli-pager
-    aws ec2 wait instance-status-ok --profile investmind --region us-east-1 --instance-ids i-0bb284d740d01bbd5
-    ssh-add "$HOME/.ssh/investmind_demo"
-    python scripts/prepare_ansible_inventory.py
+A deployment can report `changed>0` on repeated runs. It restarts processes and
+has a downtime window; it is not a zero-downtime or high-availability deployment.
+An interrupted or failed deployment requires inspection of the failed task and
+the actual service state. The `current` link is not an automatic rollback.
 
-Guarde a saída com o IP e as fingerprints já confiadas pelo Mac. O script
-consulta a AWS para pegar o endereço atual, não o IP antigo do Terraform.
+## First-time user and asset setup
 
-    python scripts/prepare_terraform_demo.py
-    terraform -chdir=infra/aws plan -input=false -out=deploy-access.tfplan
+For a newly initialized AWS database only, connect through the verified SSH
+command. Run the following **inside EC2**:
 
-Sem mudanças, continue. Se houver somente atualização dos outputs ou da regra
-aws_vpc_security_group_ingress_rule.ssh para seu IP /32, aplique:
+```bash
+sudo docker compose --env-file /opt/investmind/shared/deployment.env --file /opt/investmind/current/compose.production.yaml exec web python manage.py createsuperuser
+```
 
-    terraform -chdir=infra/aws apply deploy-access.tfplan
+Use a strong password and sign in through the printed HTTPS admin URL. Register
+demo assets through the Asset admin before selecting them in transaction forms.
+Create portfolios and transactions through the application. The Mac's local user
+and records are not copied by deployment. Existing AWS users do not need to be
+recreated for each release or restart.
 
-Se houver alteração em EC2, disco ou outros recursos, revise antes de aplicar.
+## Configure provider keys
 
-Execute o comando SSH impresso pelo inventário. Se o IP for novo, compare a
-fingerprint do aviso com a identificação já confiada apresentada pelo script.
-Se a referência estiver ausente, use a consulta AWS que o helper imprime para
-conferir a fingerprint. Não desative a validação SSH para contornar divergências.
-Depois de conectar, digite exit para voltar ao Mac.
+The environment helper generates the Django secret key and PostgreSQL password
+on first initialization and preserves them in later deployments. The files
+`/opt/investmind/shared/app.env` and `db.env` are root-owned with permissions
+`0600` and remain outside release directories.
 
-## 4. Implantar (comandos executados no Mac)
+OpenAI and Alpha Vantage keys start empty on a new host. To configure them,
+run **inside an interactive EC2 SSH session**:
 
-    "$HOME/.venvs/investmind-ansible/bin/ansible-playbook" -i "$HOME/.config/investmind/ansible-inventory.json" infra/ansible/deploy-demo.yml --syntax-check
-    "$HOME/.venvs/investmind-ansible/bin/ansible-playbook" -i "$HOME/.config/investmind/ansible-inventory.json" infra/ansible/deploy-demo.yml
+```bash
+sudo python3 /opt/investmind/bin/manage_demo_env.py --configure-apis
+```
 
-Este é um playbook de DEPLOY. Ele faz download de imagens de infraestrutura,
-para processos da aplicação durante migrations e inicia a versão selecionada.
-Uma nova execução pode registrar changed>0 mesmo sem mudança no código. O
-teste changed=0 pertence ao prepare-server.yml, não a este fluxo de implantação.
-O deploy simples tem uma janela de indisponibilidade; alta disponibilidade
-e migração sem downtime não fazem parte desse ambiente de demonstração.
+The hidden prompts preserve an existing value when Enter is pressed. The helper
+does not create provider credentials or make external API calls. Recreate the
+application services to load changed environment values:
 
-O primeiro envio do arquivo comprimido pode demorar. Após iniciar Caddy, o
-teste HTTPS pode repetir por alguns minutos enquanto o certificado é emitido.
-O teste usa curl no Mac, com verificação de certificado ativa. Isso evita o
-problema anterior do repositório de certificados do Python local.
+```bash
+sudo docker compose --env-file /opt/investmind/shared/deployment.env --file /opt/investmind/current/compose.production.yaml up -d --no-deps --force-recreate --wait --wait-timeout 180 web worker beat
+```
 
-Ao concluir, envie o PLAY RECAP e o endereço público apresentado. O teste
-confere HTTPS, admin, CSS e conexão do Worker ao Redis. Ainda precisamos
-testar as funcionalidades reais e os provedores externos depois do login.
+API requests, knowledge ingestion and live report tests use provider quotas or
+credits. The report output budget is separately documented in the
+[output-limit guide](demo-report-output-limit.md). SMTP configuration and real
+email delivery have not been validated for this demo.
 
-## 5. Criar o usuário (comandos executados DENTRO da EC2)
+## Inspect and recover
 
-Conecte novamente com o comando SSH impresso pelo helper. No terminal ubuntu@:
+Run **inside EC2**:
 
-    sudo docker compose --env-file /opt/investmind/shared/deployment.env --file /opt/investmind/current/compose.production.yaml exec web python manage.py createsuperuser
+```bash
+sudo docker compose --env-file /opt/investmind/shared/deployment.env --file /opt/investmind/current/compose.production.yaml ps
+sudo docker compose --env-file /opt/investmind/shared/deployment.env --file /opt/investmind/current/compose.production.yaml logs --tail=80 web worker beat proxy
+sudo docker stats --no-stream
+df -h /
+```
 
-Escolha usuário, email e uma senha forte. A senha não aparece ao digitar.
-O banco da AWS não possui o usuário do Mac; ele precisa ser criado aqui.
-Abra https://IP_ATUAL/admin/ no navegador. O certificado precisa ser válido.
-Teste também a página de login e o dashboard do projeto, criando dados fictícios
-de demonstração pelo fluxo da aplicação. Não importamos o banco local.
+If deployment failed before the new `current` link was recorded, inspect the
+intended release using its actual directory under `/opt/investmind/releases/`.
+Use `config --quiet` when validating Compose without exposing environment values.
 
-## 6. Informar chaves de API sem enviá-las ao chat ou ao Git (EC2)
+Named volumes belong to the `investmind-ai-demo` project. Avoid
+`docker compose down --volumes` when retaining records. Persistence is not a
+backup; use the [database backup procedure](aws-demo-backup.md).
 
-As senhas PostgreSQL e a chave Django foram geradas na EC2. Os arquivos
-/opt/investmind/shared/app.env e db.env têm permissões 600 e pertencem a root.
-Eles ficam fora das pastas de releases e são preservados nas novas execuções.
-A aplicação recebe variáveis de produção; o modo local de teste está desligado.
+Image selection does not reverse migrations or recover data. In the configured
+Terraform environment, instance termination deletes the root volume; ordinary
+demo shutdown uses EC2 stop, not terminate or `terraform destroy`.
 
-Na primeira criação as chaves OpenAI e Alpha Vantage ficam vazias. O deploy
-da infraestrutura funciona sem elas, mas os recursos que usam esses provedores
-precisam das suas chaves válidas. Para informá-las, dentro da EC2:
+## Reopen and shut down
 
-    sudo python3 /opt/investmind/bin/manage_demo_env.py --configure-apis
+For the same application version, reuse the prepared archive after refreshing
+access and redeploying the host configuration. Rebuild when selecting a different
+committed application version. Registry metadata and archive metadata are
+independent and may identify different revisions.
 
-O script pede as chaves sem exibi-las e mantém um valor existente se você
-pressionar Enter. Ele não gera nem troca chaves dos provedores e não faz chamadas
-às APIs. Depois recrie somente os processos que precisam reler o ambiente:
+Return to the Mac with `exit`, then stop and confirm the instance using
+[AWS operations](aws-demo-operations.md#stop-and-confirm). Retained storage still
+incurs charges while the instance is stopped.
 
-    sudo docker compose --env-file /opt/investmind/shared/deployment.env --file /opt/investmind/current/compose.production.yaml up -d --no-deps --force-recreate --wait --wait-timeout 180 web worker beat
+Both the archive method and the later registry method have been exercised against
+the demo host. [Functional validation](functional-validation-review.md) records
+the application checks separately from deployment smoke tests.
 
-Então teste cotações, processamento em segundo plano e IA com uma carteira de
-demonstração. Esses testes reais podem consumir as cotas/créditos dos provedores.
-O modelo OpenAI é o definido no código commitado, a menos que você configure
-OPENAI_MODEL no app.env. Configuração e envio real de email SMTP ficam pendentes.
+## References
 
-## 7. Verificar e investigar problemas (EC2)
-
-    sudo docker compose --env-file /opt/investmind/shared/deployment.env --file /opt/investmind/current/compose.production.yaml ps
-    sudo docker compose --env-file /opt/investmind/shared/deployment.env --file /opt/investmind/current/compose.production.yaml logs --tail=80 web worker beat proxy
-    sudo docker stats --no-stream
-    df -h /
-
-Se o deploy falhar antes de criar o link current, use --file com o diretório
-/opt/investmind/releases/SHA_DO_COMMIT/compose.production.yaml, informado no build.
-Compartilhe somente o erro relevante e remova eventuais dados pessoais. Não
-execute compose config sem --quiet: a saída pode mostrar variáveis secretas.
-Não compartilhe app.env, db.env, chaves privadas ou arquivos de credenciais.
-
-O armazenamento usa volumes nomeados do projeto investmind-ai-demo, que
-permanecem após stop/start e troca de release. Não use down --volumes: isso
-remove os dados. Docker volumes são persistência, não backup. Terminando a EC2,
-o disco raiz e os dados nela serão removidos conforme nosso Terraform.
-
-## 8. Parar e voltar a usar
-
-Dentro da EC2, use exit. De volta ao Mac:
-
-    aws ec2 stop-instances --profile investmind --region us-east-1 --instance-ids i-0bb284d740d01bbd5 --no-cli-pager
-    aws ec2 wait instance-stopped --profile investmind --region us-east-1 --instance-ids i-0bb284d740d01bbd5
-
-O disco continua cobrando. Para outra apresentação, repita os passos 3 e 4 para
-atualizar o IP no inventário e na aplicação. Reutilize a imagem já construída;
-execute o passo 2 novamente quando quiser implantar outro commit. A URL poderá
-mudar. Prepare e teste o acesso antes da entrevista para aguardar eventual
-emissão/renovação de certificado e confirmar login, dados e serviços externos.
-
-## Evolução após o primeiro deploy
-
-Depois desta implantação foram adicionados backup/restauração e entrega de imagens
-pelo GitHub Actions/GHCR. Consulte `docs/aws-demo-backup.md`,
-`docs/registry-delivery.md` e `docs/aws-demo-operations.md` para os fluxos atuais.
-O workflow publica imagens após a CI passar; a implantação continua iniciada no Mac.
-Rollback de código não desfaz automaticamente migrations nem restaura dados.
-
-Este guia original teve validação real no Mac e na EC2, incluindo HTTPS e compras/
-vendas pelo navegador. A nova entrega do registry tem seus próprios testes e exige
-uma publicação real no GitHub e um deploy real na EC2 para ser validada ponta a ponta.
-
-## Referências
-
-- https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability/
-- https://caddyserver.com/docs/caddyfile/directives/tls
-- https://caddyserver.com/docs/caddyfile/options
-- https://docs.docker.com/reference/compose-file/services/
-- https://docs.docker.com/reference/cli/docker/image/save/
-- https://docs.docker.com/reference/cli/docker/image/load/
+- [Let's Encrypt IP certificates and the shortlived profile](https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability/)
+- [Caddy global options including default_sni](https://caddyserver.com/docs/caddyfile/options)

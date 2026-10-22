@@ -79,7 +79,7 @@ Risk | InvestMind AI
         </div>
         <div class="metric-value">
             {% if risk.data.annualized_volatility_percentage is not None %}
-                {{ risk.data.annualized_volatility_percentage|floatformat:2 }}%
+                {{ risk.data.annualized_volatility_percentage|floatformat:"2g" }}%
             {% else %}
                 Unavailable
             {% endif %}
@@ -99,7 +99,7 @@ Risk | InvestMind AI
         </div>
         <div class="metric-value">
             {% if risk.data.annualized_downside_deviation_percentage is not None %}
-                {{ risk.data.annualized_downside_deviation_percentage|floatformat:2 }}%
+                {{ risk.data.annualized_downside_deviation_percentage|floatformat:"2g" }}%
             {% else %}
                 Unavailable
             {% endif %}
@@ -118,7 +118,7 @@ Risk | InvestMind AI
             </span>
         </div>
         <div class="metric-value metric-negative">
-            {{ risk.data.maximum_drawdown_percentage|floatformat:2 }}%
+            {{ risk.data.maximum_drawdown_percentage|floatformat:"2g" }}%
         </div>
         <span class="metric-helper">
             Largest peak-to-trough decline
@@ -143,10 +143,7 @@ Risk | InvestMind AI
                 {% endif %}
             "
         >
-            {% if risk.data.time_weighted_return_percentage > 0 %}
-                +
-            {% endif %}
-            {{ risk.data.time_weighted_return_percentage|floatformat:2 }}%
+            {% if risk.data.time_weighted_return_percentage > 0 %}+{% endif %}{{ risk.data.time_weighted_return_percentage|floatformat:"2g" }}%
         </div>
         <span class="metric-helper">
             Return over the analyzed period
@@ -159,7 +156,7 @@ Risk | InvestMind AI
             BEST PERIOD
         </span>
         <div class="risk-period-value {% if risk.data.best_period.return_percentage > 0 %}metric-positive{% elif risk.data.best_period.return_percentage < 0 %}metric-negative{% endif %}">
-            {% if risk.data.best_period.return_percentage > 0 %}+{% endif %}{{ risk.data.best_period.return_percentage|floatformat:2 }}%
+            {% if risk.data.best_period.return_percentage > 0 %}+{% endif %}{{ risk.data.best_period.return_percentage|floatformat:"2g" }}%
         </div>
         <span class="risk-period-date">
             {{ risk.data.best_period.date|date:"d M Y" }}
@@ -170,7 +167,7 @@ Risk | InvestMind AI
             WORST PERIOD
         </span>
         <div class="risk-period-value {% if risk.data.worst_period.return_percentage > 0 %}metric-positive{% elif risk.data.worst_period.return_percentage < 0 %}metric-negative{% endif %}">
-            {% if risk.data.worst_period.return_percentage > 0 %}+{% endif %}{{ risk.data.worst_period.return_percentage|floatformat:2 }}%
+            {% if risk.data.worst_period.return_percentage > 0 %}+{% endif %}{{ risk.data.worst_period.return_percentage|floatformat:"2g" }}%
         </div>
         <span class="risk-period-date">
             {{ risk.data.worst_period.date|date:"d M Y" }}
@@ -323,6 +320,10 @@ Risk | InvestMind AI
 <script
     src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
 ></script>
+<script
+    src="{% static 'js/number_format.js' %}"
+></script>
+
 <script
     src="{% static 'js/risk.js' %}"
 ></script>

@@ -108,11 +108,7 @@ Performance | InvestMind AI
                 {% endif %}
             "
         >
-            {% if performance.data.time_weighted_return_percentage > 0 %}
-                +
-            {% endif %}
-
-            {{ performance.data.time_weighted_return_percentage|floatformat:2 }}%
+            {% if performance.data.time_weighted_return_percentage > 0 %}+{% endif %}{{ performance.data.time_weighted_return_percentage|floatformat:"2g" }}%
         </div>
 
         <span class="metric-helper">
@@ -138,7 +134,7 @@ Performance | InvestMind AI
 
         <div class="metric-value">
             {{ currency_symbol }}
-            {{ performance.data.ending_value|floatformat:2 }}
+            {{ performance.data.ending_value|floatformat:"2g" }}
         </div>
 
         <span class="metric-helper">
@@ -164,7 +160,7 @@ Performance | InvestMind AI
 
         <div class="metric-value">
             {{ currency_symbol }}
-            {{ performance.data.net_external_cash_flow|floatformat:2 }}
+            {{ performance.data.net_external_cash_flow|floatformat:"2g" }}
         </div>
 
         <span class="metric-helper">
@@ -370,6 +366,10 @@ Performance | InvestMind AI
 
 <script
     src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+></script>
+
+<script
+    src="{% static 'js/number_format.js' %}"
 ></script>
 
 <script

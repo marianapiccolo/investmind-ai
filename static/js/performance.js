@@ -71,9 +71,7 @@ function renderCumulativePerformance() {
             label(context) {
               const value = context.parsed.y;
 
-              const sign = value > 0 ? "+" : "";
-
-              return `${sign}` + `${value.toFixed(2)}%`;
+              return InvestMindNumbers.percentage(value, { signed: true });
             },
           },
         },
@@ -109,7 +107,7 @@ function renderCumulativePerformance() {
             },
 
             callback(value) {
-              return `${value}%`;
+              return InvestMindNumbers.percentage(value, { minimumFractionDigits: 0 });
             },
           },
         },
@@ -173,9 +171,7 @@ function renderDailyReturns() {
                 return "No return available";
               }
 
-              const sign = value > 0 ? "+" : "";
-
-              return `${sign}` + `${value.toFixed(2)}%`;
+              return InvestMindNumbers.percentage(value, { signed: true });
             },
           },
         },
@@ -211,7 +207,7 @@ function renderDailyReturns() {
             },
 
             callback(value) {
-              return `${value}%`;
+              return InvestMindNumbers.percentage(value, { minimumFractionDigits: 0 });
             },
           },
         },

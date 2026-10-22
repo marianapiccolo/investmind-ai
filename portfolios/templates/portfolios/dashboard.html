@@ -124,12 +124,12 @@ Dashboard | InvestMind AI
 
             <div class="metric-value">
                 {{ currency_symbol }}
-                {{ market_summary.data.total_market_value|floatformat:2 }}
+                {{ market_summary.data.total_market_value|floatformat:"2g" }}
             </div>
 
             <span class="metric-helper">
                 {{ currency_symbol }}
-                {{ market_summary.data.total_invested|floatformat:2 }}
+                {{ market_summary.data.total_invested|floatformat:"2g" }}
                 invested
             </span>
 
@@ -178,10 +178,7 @@ Dashboard | InvestMind AI
                     {% endif %}
                 "
             >
-                {% if market_summary.data.total_return_percentage > 0 %}
-                    +
-                {% endif %}
-                {{ market_summary.data.total_return_percentage|floatformat:2 }}%
+                {% if market_summary.data.total_return_percentage > 0 %}+{% endif %}{{ market_summary.data.total_return_percentage|floatformat:"2g" }}%
             </div>
 
             <span class="metric-helper">
@@ -189,7 +186,7 @@ Dashboard | InvestMind AI
                     +
                 {% endif %}
                 {{ currency_symbol }}
-                {{ market_summary.data.total_unrealized_profit_loss|floatformat:2 }}
+                {{ market_summary.data.total_unrealized_profit_loss|floatformat:"2g" }}
                 unrealized P/L
             </span>
 
@@ -223,10 +220,10 @@ Dashboard | InvestMind AI
         </div>
 
 
-        {% if risk.available %}
+        {% if risk.available and risk.data.annualized_volatility_percentage is not None %}
 
             <div class="metric-value">
-                {{ risk.data.annualized_volatility_percentage|floatformat:2 }}%
+                {{ risk.data.annualized_volatility_percentage|floatformat:"2g" }}%
             </div>
 
             <span class="metric-helper">
@@ -242,9 +239,13 @@ Dashboard | InvestMind AI
 
             <span
                 class="metric-helper"
-                title="{{ risk.reason }}"
+                title="{% if risk.available %}{{ risk.data.annualization_unavailable_reason }}{% else %}{{ risk.reason }}{% endif %}"
             >
-                Insufficient historical data
+                {% if risk.available %}
+                    Annualized volatility unavailable
+                {% else %}
+                    Insufficient historical data
+                {% endif %}
             </span>
 
         {% endif %}
@@ -270,7 +271,7 @@ Dashboard | InvestMind AI
         {% if risk.available %}
 
             <div class="metric-value metric-negative">
-                {{ risk.data.maximum_drawdown_percentage|floatformat:2 }}%
+                {{ risk.data.maximum_drawdown_percentage|floatformat:"2g" }}%
             </div>
 
             <span class="metric-helper">
@@ -355,10 +356,7 @@ Dashboard | InvestMind AI
                     {% endif %}
                 "
             >
-                {% if performance.data.time_weighted_return_percentage > 0 %}
-                    +
-                {% endif %}
-                {{ performance.data.time_weighted_return_percentage|floatformat:2 }}%
+                {% if performance.data.time_weighted_return_percentage > 0 %}+{% endif %}{{ performance.data.time_weighted_return_percentage|floatformat:"2g" }}%
             </strong>
 
         </div>
@@ -432,7 +430,7 @@ Dashboard | InvestMind AI
                         </div>
 
                         <span class="composition-weight">
-                            {{ position.allocation_percentage|floatformat:2 }}%
+                            {{ position.allocation_percentage|floatformat:"2g" }}%
                         </span>
 
                     </div>
@@ -554,22 +552,22 @@ Dashboard | InvestMind AI
                             </td>
 
                             <td class="text-end">
-                                {{ position.quantity|floatformat:4 }}
+                                {{ position.quantity|floatformat:"4g" }}
                             </td>
 
                             <td class="text-end">
                                 {{ currency_symbol }}
-                                {{ position.average_price|floatformat:2 }}
+                                {{ position.average_price|floatformat:"2g" }}
                             </td>
 
                             <td class="text-end">
                                 {{ currency_symbol }}
-                                {{ position.current_price|floatformat:2 }}
+                                {{ position.current_price|floatformat:"2g" }}
                             </td>
 
                             <td class="text-end holding-value">
                                 {{ currency_symbol }}
-                                {{ position.market_value|floatformat:2 }}
+                                {{ position.market_value|floatformat:"2g" }}
                             </td>
 
                             <td
@@ -582,14 +580,11 @@ Dashboard | InvestMind AI
                                     {% endif %}
                                 "
                             >
-                                {% if position.return_percentage > 0 %}
-                                    +
-                                {% endif %}
-                                {{ position.return_percentage|floatformat:2 }}%
+                                {% if position.return_percentage > 0 %}+{% endif %}{{ position.return_percentage|floatformat:"2g" }}%
                             </td>
 
                             <td class="text-end">
-                                {{ position.allocation_percentage|floatformat:2 }}%
+                                {{ position.allocation_percentage|floatformat:"2g" }}%
                             </td>
 
                         </tr>
@@ -714,14 +709,14 @@ Dashboard | InvestMind AI
 
                             <strong>
                                 {{ currency_symbol }}
-                                {{ transaction.gross_amount|floatformat:2 }}
+                                {{ transaction.gross_amount|floatformat:"2g" }}
                             </strong>
 
                             <span>
-                                {{ transaction.quantity|floatformat:4 }}
+                                {{ transaction.quantity|floatformat:"4g" }}
                                 ×
                                 {{ currency_symbol }}
-                                {{ transaction.price|floatformat:2 }}
+                                {{ transaction.price|floatformat:"2g" }}
                             </span>
 
                         </div>
@@ -832,6 +827,10 @@ Dashboard | InvestMind AI
 
 <script
     src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+></script>
+
+<script
+    src="{% static 'js/number_format.js' %}"
 ></script>
 
 <script

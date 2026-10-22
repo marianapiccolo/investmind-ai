@@ -73,9 +73,7 @@ function renderPerformanceChart() {
             label(context) {
               const value = context.parsed.y;
 
-              const sign = value > 0 ? "+" : "";
-
-              return `${sign}` + `${value.toFixed(2)}%`;
+              return InvestMindNumbers.percentage(value, { signed: true });
             },
           },
         },
@@ -111,7 +109,7 @@ function renderPerformanceChart() {
             },
 
             callback(value) {
-              return `${value}%`;
+              return InvestMindNumbers.percentage(value, { minimumFractionDigits: 0 });
             },
           },
         },
@@ -177,7 +175,7 @@ function renderCompositionChart() {
         tooltip: {
           callbacks: {
             label(context) {
-              return `${context.label}: ` + `${context.parsed.toFixed(2)}%`;
+              return `${context.label}: ${InvestMindNumbers.percentage(context.parsed)}`;
             },
           },
         },

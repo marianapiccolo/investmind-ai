@@ -199,5 +199,6 @@ host-key verification, deployment, backup and shutdown.
 - Demonstration records include synthetic execution prices. Results are
   educational and are not personalized investment recommendations.
 
-Remaining presentation work includes consistent number formatting, a coherent
-demo dataset and a reproducible interview demonstration script.
+Displayed amounts and percentages use English (United States) number formatting.
+Remaining presentation work includes a coherent sample dataset and a documented
+application walkthrough.

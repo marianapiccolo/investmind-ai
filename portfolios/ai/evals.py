@@ -152,10 +152,13 @@ def _evaluate_evidence(
             )
             continue
 
-        if (
-            str(actual_value)
-            != str(provided_value)
-        ):
+        expected_values = {str(actual_value)}
+
+        if isinstance(actual_value, bool):
+            # JSON and Python spell the same boolean differently.
+            expected_values.add("true" if actual_value else "false")
+
+        if str(provided_value) not in expected_values:
             invalid_evidence.append(
                 {
                     "metric_path": metric_path,

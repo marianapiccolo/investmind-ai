@@ -266,13 +266,13 @@ Transactions | InvestMind AI
 
 
                             <td>
-                                {{ row.quantity|floatformat:4 }}
+                                {{ row.quantity|floatformat:"4g" }}
                             </td>
 
 
                             <td>
                                 {{ row.currency_symbol }}
-                                {{ row.price|floatformat:2 }}
+                                {{ row.price|floatformat:"2g" }}
                             </td>
 
 
@@ -280,7 +280,7 @@ Transactions | InvestMind AI
 
                                 <strong>
                                     {{ row.currency_symbol }}
-                                    {{ row.gross_amount|floatformat:2 }}
+                                    {{ row.gross_amount|floatformat:"2g" }}
                                 </strong>
 
                                 <span>

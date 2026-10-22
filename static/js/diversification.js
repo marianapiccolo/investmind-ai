@@ -69,7 +69,7 @@ function renderAssetTypeChart() {
         tooltip: {
           callbacks: {
             label(context) {
-              return `${context.label}: ` + `${context.parsed.toFixed(2)}%`;
+              return `${context.label}: ${InvestMindNumbers.percentage(context.parsed)}`;
             },
           },
         },
@@ -123,7 +123,7 @@ function renderSectorChart() {
         tooltip: {
           callbacks: {
             label(context) {
-              return `${context.parsed.x.toFixed(2)}%`;
+              return InvestMindNumbers.percentage(context.parsed.x);
             },
           },
         },
@@ -147,7 +147,7 @@ function renderSectorChart() {
             },
 
             callback(value) {
-              return `${value}%`;
+              return InvestMindNumbers.percentage(value, { minimumFractionDigits: 0 });
             },
           },
         },

@@ -125,7 +125,7 @@ Diversification | InvestMind AI
 
         <div class="metric-value">
             {{ currency_symbol }}
-            {{ composition.data.total_market_value|floatformat:2 }}
+            {{ composition.data.total_market_value|floatformat:"2g" }}
         </div>
 
         <span class="metric-helper">
@@ -150,7 +150,7 @@ Diversification | InvestMind AI
         </div>
 
         <div class="metric-value">
-            {{ composition.data.largest_position_percentage|floatformat:2 }}%
+            {{ composition.data.largest_position_percentage|floatformat:"2g" }}%
         </div>
 
         <span class="metric-helper">
@@ -175,7 +175,7 @@ Diversification | InvestMind AI
         </div>
 
         <div class="metric-value">
-            {{ composition.data.hhi_concentration_index|floatformat:4 }}
+            {{ composition.data.hhi_concentration_index|floatformat:"4g" }}
         </div>
 
         <span class="metric-helper">
@@ -231,7 +231,7 @@ Diversification | InvestMind AI
                             </span>
 
                             <strong>
-                                {{ item.allocation_percentage|floatformat:2 }}%
+                                {{ item.allocation_percentage|floatformat:"2g" }}%
                             </strong>
 
                         </div>
@@ -335,11 +335,11 @@ Diversification | InvestMind AI
 
                         <span>
                             {{ currency_symbol }}
-                            {{ holding.market_value|floatformat:2 }}
+                            {{ holding.market_value|floatformat:"2g" }}
                         </span>
 
                         <strong>
-                            {{ holding.allocation_percentage|floatformat:2 }}%
+                            {{ holding.allocation_percentage|floatformat:"2g" }}%
                         </strong>
 
                     </div>
@@ -444,7 +444,7 @@ Diversification | InvestMind AI
 
                     <strong>
                         {% if diversification.data.average_pairwise_correlation != None %}
-                            {{ diversification.data.average_pairwise_correlation|floatformat:4 }}
+                            {{ diversification.data.average_pairwise_correlation|floatformat:"4g" }}
                         {% else %}
                             —
                         {% endif %}
@@ -576,6 +576,10 @@ Diversification | InvestMind AI
 
 <script
     src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+></script>
+
+<script
+    src="{% static 'js/number_format.js' %}"
 ></script>
 
 <script

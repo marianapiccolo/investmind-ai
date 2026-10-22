@@ -58,7 +58,7 @@ function renderRiskDistribution() {
         tooltip: {
           callbacks: {
             label(context) {
-              return `${context.label}: ` + `${context.parsed}`;
+              return `${context.label}: ${InvestMindNumbers.number(context.parsed, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
             },
           },
         },
@@ -112,9 +112,7 @@ function renderExtremeReturns() {
             label(context) {
               const value = context.parsed.y;
 
-              const sign = value > 0 ? "+" : "";
-
-              return `${sign}` + `${value.toFixed(2)}%`;
+              return InvestMindNumbers.percentage(value, { signed: true });
             },
           },
         },
@@ -148,7 +146,7 @@ function renderExtremeReturns() {
             },
 
             callback(value) {
-              return `${value}%`;
+              return InvestMindNumbers.percentage(value, { minimumFractionDigits: 0 });
             },
           },
         },

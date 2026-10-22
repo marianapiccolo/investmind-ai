@@ -121,8 +121,8 @@ host configuration, applies migrations and verifies the services and HTTPS.
 Use the URL printed after successful deployment.
 
 A stop/start cycle may require reissuing an IP certificate and refreshing Django
-and Caddy host settings. Prepare the demo before an interview rather than starting
-it immediately before the presentation.
+and Caddy host settings. Start the environment in advance and verify HTTPS and
+application availability before use.
 
 Check the intended demonstration flows: login, portfolio selection, an asset in
 the catalog, transactions, market data and the relevant AI features. Provider

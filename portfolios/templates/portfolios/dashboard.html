@@ -27,13 +27,13 @@ Dashboard | InvestMind AI
 
     <div class="page-header-actions">
 
-        <button
+        <a
             class="btn btn-secondary-finance"
-            type="button"
+            href="?{% if selected_portfolio %}portfolio={{ selected_portfolio.id }}{% endif %}"
         >
             <i class="bi bi-arrow-clockwise"></i>
             Refresh
-        </button>
+        </a>
 
         {% if selected_portfolio %}
             <a
@@ -775,12 +775,13 @@ Dashboard | InvestMind AI
             </p>
 
             <a
-            class="btn btn-ai-finance"
-            href="{% url 'web:ai-analyst' %}?portfolio={{ selected_portfolio.id }}"
-        >
-            Open AI Analyst
-            <i class="bi bi-arrow-right"></i>
-        </a>
+                class="btn btn-ai-finance"
+                href="{% url 'web:ai-analyst' %}?portfolio={{ selected_portfolio.id }}"
+            >
+                Open AI Analyst
+                <i class="bi bi-arrow-right"></i>
+            </a>
+
         </div>
 
     </article>

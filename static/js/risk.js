@@ -76,11 +76,20 @@ function renderExtremeReturns() {
     return;
   }
 
+  const periodDates = [
+    canvas.dataset.bestPeriodDate,
+    canvas.dataset.worstPeriodDate,
+  ];
+
+  const labels = data.labels.map((label, index) =>
+    periodDates[index] ? [label, periodDates[index]] : label
+  );
+
   new Chart(canvas, {
     type: "bar",
 
     data: {
-      labels: data.labels,
+      labels,
 
       datasets: [
         {
@@ -125,6 +134,10 @@ function renderExtremeReturns() {
           },
 
           ticks: {
+            autoSkip: false,
+
+            maxRotation: 0,
+
             color: "#667085",
 
             font: {

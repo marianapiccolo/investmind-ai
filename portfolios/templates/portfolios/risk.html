@@ -240,13 +240,18 @@ Risk | InvestMind AI
                 <h3>
                     Best vs Worst Period
                 </h3>
+                <p class="metric-helper mb-0">
+                    Dates indicate the end of each return period.
+                </p>
             </div>
         </div>
         {% if extreme_return_chart %}
             <div class="analytics-chart-large">
                 <canvas
                     id="extremeReturnChart"
-                    aria-label="Best and worst portfolio return periods"
+                    data-best-period-date="{{ risk.data.best_period.date|date:'d M Y' }}"
+                    data-worst-period-date="{{ risk.data.worst_period.date|date:'d M Y' }}"
+                    aria-label="Best and worst portfolio return periods. Best period ending {{ risk.data.best_period.date|date:'d M Y' }}; worst period ending {{ risk.data.worst_period.date|date:'d M Y' }}."
                 ></canvas>
             </div>
         {% endif %}

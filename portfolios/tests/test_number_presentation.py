@@ -24,6 +24,7 @@ urlpatterns = [
                 [
                     path("transactions/", empty_view, name="transactions"),
                     path("portfolios/", empty_view, name="portfolio"),
+                    path("ai-analyst/", empty_view, name="ai-analyst"),
                 ],
                 "web",
             ),

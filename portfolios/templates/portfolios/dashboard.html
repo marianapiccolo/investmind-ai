@@ -774,15 +774,13 @@ Dashboard | InvestMind AI
                 diversification through the AI Analyst.
             </p>
 
-            <button
-                class="btn btn-ai-finance"
-                type="button"
-            >
-                Open AI Analyst
-
-                <i class="bi bi-arrow-right"></i>
-            </button>
-
+            <a
+            class="btn btn-ai-finance"
+            href="{% url 'web:ai-analyst' %}?portfolio={{ selected_portfolio.id }}"
+        >
+            Open AI Analyst
+            <i class="bi bi-arrow-right"></i>
+        </a>
         </div>
 
     </article>

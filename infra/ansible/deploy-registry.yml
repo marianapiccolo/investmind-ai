@@ -1,0 +1,248 @@
+---
+- name: Deploy a versioned InvestMind image from the private GitHub registry
+  hosts: investmind
+  become: true
+  gather_facts: true
+  vars:
+    registry_release: >-
+      {{ lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'HOME') + '/.cache/investmind/registry-release.json') | from_json }}
+    release_directory: "/opt/investmind/releases/{{ registry_release.revision }}"
+    compose_arguments:
+      - /usr/bin/docker
+      - compose
+      - --env-file
+      - /opt/investmind/shared/deployment.env
+      - --file
+      - "{{ release_directory }}/compose.production.yaml"
+
+  pre_tasks:
+    - name: Check release metadata and target operating system
+      ansible.builtin.assert:
+        that:
+          - registry_release.revision is match('^[0-9a-f]{40}$')
+          - registry_release.digest is match('^sha256:[0-9a-f]{64}$')
+          - registry_release.repository == 'marianapiccolo/investmind-ai'
+          - registry_release.image == 'ghcr.io/marianapiccolo/investmind-ai'
+          - registry_release.reference == registry_release.image + '@' + registry_release.digest
+          - lookup('ansible.builtin.env', 'INVESTMIND_GHCR_TOKEN') | length > 0
+          - registry_release.platform == 'linux/arm64'
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - ansible_facts['distribution_version'] is version('24.04', '==')
+          - ansible_facts['architecture'] == 'aarch64'
+        quiet: true
+      no_log: true
+
+    - name: Read the installed Compose version
+      ansible.builtin.command:
+        argv: [/usr/bin/docker, compose, version, --short]
+      register: compose_version
+      changed_when: false
+
+    - name: Require support for raw environment files
+      ansible.builtin.assert:
+        that:
+          - (compose_version.stdout | trim | regex_replace('^v', '')) is version('2.30.0', '>=')
+
+  tasks:
+    - name: Create release and private configuration directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+      loop:
+        - {path: /opt/investmind/releases, mode: '0755'}
+        - {path: /opt/investmind/shared, mode: '0700'}
+        - {path: /opt/investmind/bin, mode: '0755'}
+        - {path: '{{ release_directory }}', mode: '0755'}
+
+    - name: Download the private image with temporary registry credentials
+      block:
+        - name: Create a private temporary Docker configuration
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: investmind-ghcr-
+          register: registry_credentials
+
+        - name: Authenticate to the GitHub registry without logging the token
+          ansible.builtin.command:
+            argv:
+              - /usr/bin/docker
+              - --config
+              - '{{ registry_credentials.path }}'
+              - login
+              - ghcr.io
+              - --username
+              - marianapiccolo
+              - --password-stdin
+            stdin: "{{ lookup('ansible.builtin.env', 'INVESTMIND_GHCR_TOKEN') }}"
+          no_log: true
+          changed_when: false
+
+        - name: Pull the exact ARM64 image by digest
+          ansible.builtin.command:
+            argv:
+              - /usr/bin/docker
+              - --config
+              - '{{ registry_credentials.path }}'
+              - image
+              - pull
+              - --platform
+              - linux/arm64
+              - '{{ registry_release.reference }}'
+          changed_when: true
+
+      always:
+        - name: Remove the temporary registry credentials
+          ansible.builtin.file:
+            path: '{{ registry_credentials.path }}'
+            state: absent
+          when: registry_credentials.path is defined
+          no_log: true
+
+    - name: Inspect the downloaded application image
+      ansible.builtin.command:
+        argv: [/usr/bin/docker, image, inspect, '{{ registry_release.reference }}']
+      register: deployed_image
+      changed_when: false
+
+    - name: Verify image architecture and source commit
+      ansible.builtin.assert:
+        that:
+          - (deployed_image.stdout | from_json)[0].Os == 'linux'
+          - (deployed_image.stdout | from_json)[0].Architecture == 'arm64'
+          - (deployed_image.stdout | from_json)[0].Config.Labels['org.opencontainers.image.revision'] == registry_release.revision
+          - (deployed_image.stdout | from_json)[0].Config.Labels['org.opencontainers.image.source'] == 'https://github.com/marianapiccolo/investmind-ai'
+
+    - name: Copy the deployment configuration
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../{{ item.source }}"
+        dest: "{{ release_directory }}/{{ item.destination }}"
+        owner: root
+        group: root
+        mode: '0644'
+      loop:
+        - {source: compose.production.yaml, destination: compose.production.yaml}
+        - {source: docker/caddy/Caddyfile, destination: Caddyfile}
+        - {source: docker/postgres/init-vector.sql, destination: init-vector.sql}
+
+    - name: Install the environment management helper
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../scripts/manage_demo_env.py"
+        dest: /opt/investmind/bin/manage_demo_env.py
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Generate server secrets or preserve existing credentials and update the host
+      ansible.builtin.command:
+        argv: [/usr/bin/python3, /opt/investmind/bin/manage_demo_env.py, --host, '{{ ansible_host }}']
+      register: environment_result
+      changed_when: (environment_result.stdout | from_json).changed
+      no_log: true
+
+    - name: Select the image and the current public address
+      ansible.builtin.copy:
+        dest: /opt/investmind/shared/deployment.env
+        content: |
+          APP_IMAGE={{ registry_release.reference }}
+          DEMO_HOST={{ ansible_host }}
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Validate the Compose configuration without printing environment secrets
+      ansible.builtin.command:
+        argv: "{{ compose_arguments + ['config', '--quiet'] }}"
+      changed_when: false
+      no_log: true
+
+    - name: Download the official infrastructure images
+      ansible.builtin.command:
+        argv: "{{ compose_arguments + ['pull', 'db', 'redis', 'proxy'] }}"
+      changed_when: true
+
+    - name: Validate the HTTPS proxy configuration
+      ansible.builtin.command:
+        argv: "{{ compose_arguments + ['run', '--rm', '--no-deps', 'proxy', 'caddy', 'validate', '--config', '/etc/caddy/Caddyfile', '--adapter', 'caddyfile'] }}"
+      changed_when: false
+
+    - name: Start and wait for the database and Redis
+      ansible.builtin.command:
+        argv: "{{ compose_arguments + ['up', '-d', '--wait', '--wait-timeout', '180', 'db', 'redis'] }}"
+      changed_when: true
+
+    - name: Stop application processes before applying database migrations
+      ansible.builtin.command:
+        argv: "{{ compose_arguments + ['stop', 'proxy', 'beat', 'worker', 'web'] }}"
+      changed_when: true
+
+    - name: Check strict production settings
+      ansible.builtin.command:
+        argv: "{{ compose_arguments + ['run', '--rm', '--no-deps', 'web', 'python', 'manage.py', 'check', '--deploy'] }}"
+      changed_when: false
+
+    - name: Apply database migrations once before starting application processes
+      ansible.builtin.command:
+        argv: "{{ compose_arguments + ['run', '--rm', '--no-deps', 'web', 'python', 'manage.py', 'migrate', '--noinput'] }}"
+      register: migrations
+      changed_when: "'Applying ' in migrations.stdout"
+
+    - name: Start the application and HTTPS proxy
+      ansible.builtin.command:
+        argv: "{{ compose_arguments + ['up', '-d', '--wait', '--wait-timeout', '180', 'web', 'worker', 'beat', 'proxy'] }}"
+      changed_when: true
+
+    - name: Verify the Celery worker connection to Redis
+      ansible.builtin.command:
+        argv: "{{ compose_arguments + ['exec', '-T', 'worker', 'celery', '-A', 'config.celery:app', 'inspect', 'ping', '--timeout=10'] }}"
+      register: worker_ping
+      until: worker_ping.rc == 0
+      retries: 6
+      delay: 5
+      changed_when: false
+
+    - name: Verify public HTTPS using the Mac curl certificate store
+      ansible.builtin.command:
+        argv:
+          - curl
+          - --disable
+          - --fail
+          - --silent
+          - --show-error
+          - --max-time
+          - '10'
+          - --output
+          - /dev/null
+          - "https://{{ ansible_host }}/admin/login/"
+      delegate_to: localhost
+      become: false
+      register: public_https
+      until: public_https.rc == 0
+      retries: 36
+      delay: 5
+      changed_when: false
+
+    - name: Verify public static CSS over HTTPS
+      ansible.builtin.command:
+        argv: [curl, --disable, --fail, --silent, --show-error, --max-time, '15', --output, /dev/null, 'https://{{ ansible_host }}/static/admin/css/base.css']
+      delegate_to: localhost
+      become: false
+      changed_when: false
+
+    - name: Record the current release after successful verification
+      ansible.builtin.file:
+        src: "{{ release_directory }}"
+        dest: /opt/investmind/current
+        state: link
+        owner: root
+        group: root
+
+    - name: Show the deployed address and version
+      ansible.builtin.debug:
+        msg:
+          - 'InvestMind URL: https://{{ ansible_host }}/'
+          - 'Admin URL: https://{{ ansible_host }}/admin/'
+          - 'Application commit: {{ registry_release.revision }}'
+          - 'The AWS database is separate from the database on your Mac.'

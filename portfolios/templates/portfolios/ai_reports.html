@@ -1,0 +1,753 @@
+{% extends "base.html" %}
+{% load static portfolio_extras %}
+
+{% block title %}
+AI Reports | InvestMind AI
+{% endblock %}
+
+{% block content %}
+
+<div
+    id="aiReportsPage"
+    data-auto-refresh="{% if auto_refresh %}true{% else %}false{% endif %}"
+>
+
+<section class="page-header">
+
+    <div>
+
+        <span class="page-eyebrow">
+            PORTFOLIO INTELLIGENCE
+        </span>
+
+        <h1 class="page-title">
+            AI Reports
+        </h1>
+
+        <p class="page-description">
+            Generate structured portfolio reports
+            grounded in deterministic analytics
+            and evaluated before presentation.
+        </p>
+
+    </div>
+
+
+    {% if selected_portfolio %}
+
+        <form
+            method="post"
+            id="generateReportForm"
+            action="{% url 'web:ai-reports' %}?portfolio={{ selected_portfolio.id }}"
+        >
+
+            {% csrf_token %}
+
+            <button
+                type="submit"
+                class="primary-action-button"
+                id="generateReportButton"
+            >
+                <i class="bi bi-stars"></i>
+
+                <span>
+                    Generate Report
+                </span>
+            </button>
+
+        </form>
+
+    {% endif %}
+
+</section>
+
+
+{% if selected_portfolio %}
+
+<section class="ai-report-portfolio-bar">
+
+    <div>
+
+        <span class="section-label">
+            SELECTED PORTFOLIO
+        </span>
+
+        <strong>
+            {{ selected_portfolio.name }}
+        </strong>
+
+    </div>
+
+
+    <form
+        method="get"
+        class="portfolio-selector-form"
+    >
+
+        <select
+            name="portfolio"
+            class="portfolio-selector"
+            aria-label="Select portfolio"
+            onchange="this.form.submit()"
+        >
+
+            {% for portfolio in portfolios %}
+
+                <option
+                    value="{{ portfolio.id }}"
+                    {% if portfolio.id == selected_portfolio.id %}
+                        selected
+                    {% endif %}
+                >
+                    {{ portfolio.name }}
+                </option>
+
+            {% endfor %}
+
+        </select>
+
+    </form>
+
+</section>
+
+
+<section class="ai-report-workspace">
+
+    <aside class="ai-report-history">
+
+        <div class="ai-report-history-header">
+
+            <span class="section-label">
+                REPORT HISTORY
+            </span>
+
+            <h2>
+                Reports
+            </h2>
+
+        </div>
+
+
+        <div class="ai-report-history-list">
+
+            {% for report in reports %}
+
+                <a
+                    href="{% url 'web:ai-reports' %}?portfolio={{ selected_portfolio.id }}&report={{ report.id }}"
+                    class="
+                        ai-report-history-item
+
+                        {% if selected_report and selected_report.id == report.id %}
+                            active
+                        {% endif %}
+                    "
+                >
+
+                    <div class="ai-report-history-icon">
+
+                        {% if report.status == "COMPLETED" %}
+
+                            <i class="bi bi-check-lg"></i>
+
+                        {% elif report.status == "FAILED" %}
+
+                            <i class="bi bi-x-lg"></i>
+
+                        {% elif report.status == "REJECTED" %}
+
+                            <i class="bi bi-shield-exclamation"></i>
+
+                        {% else %}
+
+                            <i class="bi bi-hourglass-split"></i>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <div>
+
+                        <strong>
+                            Report #{{ report.id }}
+                        </strong>
+
+                        <span>
+                            {{ report.get_status_display }}
+                            ·
+                            {{ report.created_at|date:"d M Y · H:i" }}
+                        </span>
+
+                    </div>
+
+                </a>
+
+            {% empty %}
+
+                <div class="ai-report-history-empty">
+
+                    <i class="bi bi-file-earmark-text"></i>
+
+                    <span>
+                        No reports generated yet.
+                    </span>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    </aside>
+
+
+    <section class="ai-report-main">
+
+        {% if selected_report %}
+
+            <div class="ai-report-meta">
+
+                <div>
+
+                    <span class="section-label">
+                        AI PORTFOLIO REPORT
+                    </span>
+
+                    <h2>
+                        Report #{{ selected_report.id }}
+                    </h2>
+
+                    <span class="ai-report-generated-at">
+                        Generated for
+                        {{ selected_portfolio.name }}
+                        ·
+                        {{ selected_report.created_at|date:"d M Y · H:i" }}
+                    </span>
+
+                </div>
+
+
+                <span
+                    class="
+                        ai-report-status
+
+                        {% if selected_report.status == 'COMPLETED' %}
+                            ai-report-status-completed
+                        {% elif selected_report.status == 'FAILED' %}
+                            ai-report-status-failed
+                        {% elif selected_report.status == 'REJECTED' %}
+                            ai-report-status-rejected
+                        {% else %}
+                            ai-report-status-processing
+                        {% endif %}
+                    "
+                >
+
+                    {% if selected_report.status == "COMPLETED" %}
+                        <i class="bi bi-check-circle"></i>
+                    {% elif selected_report.status == "FAILED" %}
+                        <i class="bi bi-x-circle"></i>
+                    {% elif selected_report.status == "REJECTED" %}
+                        <i class="bi bi-shield-exclamation"></i>
+                    {% else %}
+                        <i class="bi bi-hourglass-split"></i>
+                    {% endif %}
+
+                    {{ selected_report.get_status_display }}
+
+                </span>
+
+            </div>
+
+
+            {% if selected_report.status == "PENDING" or selected_report.status == "PROCESSING" %}
+
+                <div class="ai-report-processing">
+
+                    <div class="ai-report-spinner"></div>
+
+                    <h3>
+                        Generating your report
+                    </h3>
+
+                    <p>
+                        InvestMind is building the
+                        portfolio context, generating
+                        the AI analysis and evaluating
+                        the result.
+                    </p>
+
+                    <span>
+                        This page refreshes automatically.
+                    </span>
+
+                </div>
+
+
+            {% elif selected_report.status == "FAILED" %}
+
+                <div class="ai-report-state-card ai-report-failed-card">
+
+                    <div class="ai-report-state-icon">
+                        <i class="bi bi-exclamation-circle"></i>
+                    </div>
+
+                    <div>
+
+                        <span class="section-label">
+                            GENERATION FAILED
+                        </span>
+
+                        <h3>
+                            The report could not be generated
+                        </h3>
+
+                        <p>
+                            {% if selected_report.error_message %}
+                                {{ selected_report.error_message }}
+                            {% else %}
+                                AI report generation failed.
+                            {% endif %}
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+            {% elif selected_report.status == "REJECTED" %}
+
+                <div class="ai-report-state-card ai-report-rejected-card">
+
+                    <div class="ai-report-state-icon">
+                        <i class="bi bi-shield-exclamation"></i>
+                    </div>
+
+                    <div>
+
+                        <span class="section-label">
+                            EVALUATION REJECTED
+                        </span>
+
+                        <h3>
+                            This report did not pass
+                            InvestMind evaluation
+                        </h3>
+
+                        <p>
+                            The generated analysis was
+                            withheld because one or more
+                            grounding, completeness or
+                            safety checks did not pass.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+            {% elif selected_report.status == "COMPLETED" and report_content %}
+
+                <div class="ai-report-evaluation">
+
+                    <div>
+
+                        <span class="section-label">
+                            QUALITY EVALUATION
+                        </span>
+
+                        <strong>
+                            Automated report validation
+                        </strong>
+
+                    </div>
+
+
+                    {% if evaluation_passed %}
+
+                        <span class="ai-evaluation-passed">
+
+                            <i class="bi bi-check-circle"></i>
+
+                            Passed
+
+                        </span>
+
+                    {% else %}
+
+                        <span class="ai-evaluation-failed">
+
+                            <i class="bi bi-x-circle"></i>
+
+                            Not passed
+
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+
+                <article class="ai-report-section ai-report-executive">
+
+                    <span class="section-label">
+                        EXECUTIVE SUMMARY
+                    </span>
+
+                    <div class="ai-report-markdown">
+                        {{ report_content.executive_summary|render_markdown }}
+                    </div>
+
+                </article>
+
+
+                <div class="ai-report-analysis-grid">
+
+                    <article class="ai-report-section">
+
+                        <div class="ai-report-section-heading">
+
+                            <i class="bi bi-graph-up-arrow"></i>
+
+                            <div>
+
+                                <span class="section-label">
+                                    PERFORMANCE
+                                </span>
+
+                                <h3>
+                                    Performance Analysis
+                                </h3>
+
+                            </div>
+
+                        </div>
+
+                        <div class="ai-report-markdown">
+                            {{ report_content.performance_analysis|render_markdown }}
+                        </div>
+
+                    </article>
+
+
+                    <article class="ai-report-section">
+
+                        <div class="ai-report-section-heading">
+
+                            <i class="bi bi-shield-check"></i>
+
+                            <div>
+
+                                <span class="section-label">
+                                    RISK
+                                </span>
+
+                                <h3>
+                                    Risk Analysis
+                                </h3>
+
+                            </div>
+
+                        </div>
+
+                        <div class="ai-report-markdown">
+                            {{ report_content.risk_analysis|render_markdown }}
+                        </div>
+
+                    </article>
+
+                </div>
+
+
+                <article class="ai-report-section">
+
+                    <div class="ai-report-section-heading">
+
+                        <i class="bi bi-pie-chart"></i>
+
+                        <div>
+
+                            <span class="section-label">
+                                DIVERSIFICATION
+                            </span>
+
+                            <h3>
+                                Diversification Analysis
+                            </h3>
+
+                        </div>
+
+                    </div>
+
+                    <div class="ai-report-markdown">
+                        {{ report_content.diversification_analysis|render_markdown }}
+                    </div>
+
+                </article>
+
+
+                <div class="ai-report-analysis-grid">
+
+                    <article class="ai-report-section">
+
+                        <span class="section-label">
+                            KEY OBSERVATIONS
+                        </span>
+
+                        <ul class="ai-report-list">
+
+                            {% for item in report_content.key_observations %}
+
+                                <li>
+                                    {{ item|render_markdown }}
+                                </li>
+
+                            {% empty %}
+
+                                <li>
+                                    No key observations available.
+                                </li>
+
+                            {% endfor %}
+
+                        </ul>
+
+                    </article>
+
+
+                    <article class="ai-report-section">
+
+                        <span class="section-label">
+                            LIMITATIONS
+                        </span>
+
+                        <ul class="ai-report-list">
+
+                            {% for item in report_content.limitations %}
+
+                                <li>
+                                    {{ item|render_markdown }}
+                                </li>
+
+                            {% empty %}
+
+                                <li>
+                                    No limitations reported.
+                                </li>
+
+                            {% endfor %}
+
+                        </ul>
+
+                    </article>
+
+                </div>
+
+
+                {% if report_content.unavailable_sections %}
+
+                    <article class="ai-report-section ai-report-unavailable">
+
+                        <span class="section-label">
+                            UNAVAILABLE ANALYTICS
+                        </span>
+
+                        <ul class="ai-report-list">
+
+                            {% for item in report_content.unavailable_sections %}
+
+                                <li>
+                                    {{ item }}
+                                </li>
+
+                            {% endfor %}
+
+                        </ul>
+
+                    </article>
+
+                {% endif %}
+
+
+                <article class="ai-report-section ai-report-education">
+
+                    <div class="ai-report-section-heading">
+
+                        <i class="bi bi-lightbulb"></i>
+
+                        <div>
+
+                            <span class="section-label">
+                                EDUCATIONAL NOTE
+                            </span>
+
+                            <h3>
+                                Understanding the analysis
+                            </h3>
+
+                        </div>
+
+                    </div>
+
+                    <div class="ai-report-markdown">
+                        {{ report_content.educational_note|render_markdown }}
+                    </div>
+
+                </article>
+
+
+                <article class="ai-report-section">
+
+                    <span class="section-label">
+                        EVIDENCE
+                    </span>
+
+                    <h3 class="ai-report-evidence-title">
+                        Grounded Metrics
+                    </h3>
+
+
+                    <div class="ai-evidence-table-wrapper">
+
+                        <table class="ai-evidence-table">
+
+                            <thead>
+
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Value</th>
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                                {% for item in report_content.evidence %}
+
+                                    <tr>
+
+                                        <td>
+                                            <code>
+                                                {{ item.metric_path }}
+                                            </code>
+                                        </td>
+
+                                        <td>
+                                            {{ item.value }}
+                                        </td>
+
+                                    </tr>
+
+                                {% empty %}
+
+                                    <tr>
+
+                                        <td colspan="2">
+                                            No evidence entries available.
+                                        </td>
+
+                                    </tr>
+
+                                {% endfor %}
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </article>
+
+            {% endif %}
+
+
+        {% else %}
+
+            <div class="ai-report-empty">
+
+                <div class="ai-report-empty-icon">
+                    <i class="bi bi-file-earmark-text"></i>
+                </div>
+
+                <span class="section-label">
+                    AI PORTFOLIO REPORTS
+                </span>
+
+                <h2>
+                    Generate your first report
+                </h2>
+
+                <p>
+                    InvestMind will build a structured
+                    portfolio analysis using deterministic
+                    metrics, AI explanation and automated
+                    evaluation.
+                </p>
+
+                <form
+                    method="post"
+                    action="{% url 'web:ai-reports' %}?portfolio={{ selected_portfolio.id }}"
+                >
+
+                    {% csrf_token %}
+
+                    <button
+                        type="submit"
+                        class="primary-action-button"
+                    >
+                        <i class="bi bi-stars"></i>
+
+                        Generate Report
+                    </button>
+
+                </form>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+</section>
+
+
+{% else %}
+
+<section class="dashboard-card portfolio-empty-state">
+
+    <div class="portfolio-empty-icon">
+        <i class="bi bi-file-earmark-text"></i>
+    </div>
+
+    <h2>
+        No portfolio available
+    </h2>
+
+    <p>
+        Create a portfolio before generating
+        AI portfolio reports.
+    </p>
+
+    <a
+        href="{% url 'web:portfolio' %}"
+        class="primary-action-button"
+    >
+        Create Portfolio
+    </a>
+
+</section>
+
+{% endif %}
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script
+    src="{% static 'js/ai_reports.js' %}"
+></script>
+
+{% endblock %}

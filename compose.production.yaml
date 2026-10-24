@@ -1,0 +1,110 @@
+name: investmind-ai-demo
+
+x-app: &app
+  image: ${APP_IMAGE:?Set APP_IMAGE in deployment.env}
+  pull_policy: never
+  init: true
+  restart: unless-stopped
+  env_file:
+    - path: /opt/investmind/shared/app.env
+      format: raw
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  networks:
+    - backend
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.7-pg18-bookworm
+    restart: unless-stopped
+    env_file:
+      - path: /opt/investmind/shared/db.env
+        format: raw
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./init-vector.sql:/docker-entrypoint-initdb.d/01-vector.sql:ro
+    networks:
+      - backend
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: [redis-server, --appendonly, 'yes', --appendfsync, everysec]
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    <<: *app
+    networks:
+      - frontend
+      - backend
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          request = urllib.request.Request('http://127.0.0.1:8000/admin/login/',
+          headers={'Host': 'localhost', 'X-Forwarded-Proto': 'https'});
+          urllib.request.urlopen(request, timeout=5)
+      interval: 10s
+      timeout: 6s
+      retries: 18
+      start_period: 20s
+
+  worker:
+    <<: *app
+    command: [celery, -A, 'config.celery:app', worker, --loglevel=INFO, --concurrency=1]
+
+  beat:
+    <<: *app
+    command: [celery, -A, 'config.celery:app', beat, --loglevel=INFO, '--schedule=/tmp/celerybeat-schedule']
+
+  proxy:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    environment:
+      DEMO_HOST: ${DEMO_HOST:?Set DEMO_HOST in deployment.env}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - frontend
+    depends_on:
+      web:
+        condition: service_healthy
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,238 @@
+name: InvestMind AI CI/CD
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+  push:
+    branches:
+      - develop
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: Docker build and Django tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      COMPOSE_PROJECT_NAME: investmind-ci
+      DEVELOPMENT_NETWORK: investmind-ci_default
+      PRODUCTION_TEST_ENV_FILE: .env
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Test infrastructure helpers
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
+
+      - name: Check Docker tooling
+        run: |
+          docker --version
+          docker compose version
+
+      - name: Create CI environment
+        run: |
+          cat > .env <<'EOF'
+          DJANGO_SECRET_KEY='ci-only-not-for-production-0123456789abcdef0123456789abcdef'
+          DJANGO_DEBUG=true
+          POSTGRES_DB=investmind_ci
+          POSTGRES_USER=investmind_ci
+          POSTGRES_PASSWORD=ci-only-db-password
+          POSTGRES_HOST=db
+          POSTGRES_PORT=5432
+          OPENAI_API_KEY=ci-not-a-real-openai-key
+          ALPHA_VANTAGE_API_KEY=ci-not-a-real-market-key
+          EOF
+
+      - name: Validate Compose configurations
+        run: |
+          docker compose config --quiet
+          docker compose --project-name investmind-ci-production -f compose.production-test.yaml config --quiet
+
+      - name: Build development image
+        run: docker compose build --pull web
+
+      - name: Start PostgreSQL and Redis
+        run: docker compose up -d --wait --wait-timeout 120 db redis
+
+      - name: Apply database migrations
+        run: docker compose run --rm --no-deps web python manage.py migrate --noinput
+
+      - name: Check for missing migrations
+        run: docker compose run --rm --no-deps web python manage.py makemigrations --check --dry-run
+
+      - name: Run Django tests
+        run: docker compose run --rm --no-deps web python manage.py test --noinput
+
+      - name: Build production image
+        run: docker compose --project-name investmind-ci-production -f compose.production-test.yaml build --pull web
+
+      - name: Check production settings
+        run: >-
+          docker compose --project-name investmind-ci-production
+          -f compose.production-test.yaml run --rm --no-deps
+          -e DJANGO_LOCAL_PRODUCTION_TEST=false
+          web python manage.py check --deploy
+
+      - name: Start Gunicorn for smoke tests
+        run: >-
+          docker compose --project-name investmind-ci-production
+          -f compose.production-test.yaml up -d --wait --wait-timeout 120 web
+
+      - name: Verify admin page and static CSS
+        run: |
+          curl --fail --silent --show-error --output /dev/null http://127.0.0.1:8001/admin/login/
+          curl --fail --silent --show-error --output /dev/null http://127.0.0.1:8001/static/admin/css/base.css
+
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          if [[ -f .env ]]; then
+            docker compose --project-name investmind-ci-production -f compose.production-test.yaml logs --no-color --tail=100 web
+            docker compose logs --no-color --tail=100 db redis
+          fi
+
+      - name: Clean up CI resources
+        if: always()
+        run: |
+          if [[ -f .env ]]; then
+            docker compose --project-name investmind-ci-production -f compose.production-test.yaml down --remove-orphans
+            docker compose down --volumes --remove-orphans
+          fi
+
+  publish:
+    name: Publish tested ARM64 image
+    needs: test
+    if: >-
+      github.repository == 'marianapiccolo/investmind-ai' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/marianapiccolo/investmind-ai
+      DOCKER_BUILD_RECORD_UPLOAD: 'false'
+
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build the production image on a native ARM64 runner
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.production
+          platforms: linux/arm64
+          load: true
+          push: false
+          provenance: false
+          tags: investmind-ci-release:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/marianapiccolo/investmind-ai
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=investmind-production-arm64
+          cache-to: type=gha,scope=investmind-production-arm64,mode=min
+
+      - name: Check production settings in the ARM64 image before publishing
+        run: |
+          docker run --rm --network none \
+            -e DJANGO_SECRET_KEY=ci-image-check-only-0123456789abcdef0123456789abcdef0123456789abcdef \
+            -e DJANGO_ALLOWED_HOSTS=localhost \
+            -e DJANGO_LOCAL_PRODUCTION_TEST=false \
+            -e POSTGRES_DB=ci_image_check \
+            -e POSTGRES_USER=ci_image_check \
+            -e POSTGRES_PASSWORD=ci-image-check-only \
+            -e POSTGRES_HOST=127.0.0.1 \
+            -e POSTGRES_PORT=5432 \
+            -e OPENAI_API_KEY=ci-not-a-real-openai-key \
+            -e ALPHA_VANTAGE_API_KEY=ci-not-a-real-market-key \
+            "investmind-ci-release:$GITHUB_SHA" \
+            python manage.py check --deploy
+
+      - name: Authenticate to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish the checked image and record its immutable digest
+        run: |
+          docker tag "investmind-ci-release:$GITHUB_SHA" "$IMAGE:$GITHUB_SHA"
+          docker push "$IMAGE:$GITHUB_SHA"
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          image = os.environ["IMAGE"]
+          revision = os.environ["GITHUB_SHA"]
+          inspected = json.loads(subprocess.check_output([
+              "docker", "image", "inspect", image + ":" + revision,
+          ]))[0]
+          if inspected["Os"] != "linux" or inspected["Architecture"] != "arm64":
+              raise SystemExit("The published image must be linux/arm64.")
+          references = [item for item in inspected.get("RepoDigests", [])
+                        if item.startswith(image + "@sha256:")]
+          if len(references) != 1:
+              raise SystemExit("Expected one registry digest after the push.")
+          digest = references[0].split("@", 1)[1]
+          if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+              raise SystemExit("Invalid published image digest.")
+          release = {
+              "schema_version": 1,
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "image": image,
+              "revision": revision,
+              "digest": digest,
+              "platform": "linux/arm64",
+              "ref": os.environ["GITHUB_REF"],
+              "workflow_run_url": (
+                  "https://github.com/" + os.environ["GITHUB_REPOSITORY"]
+                  + "/actions/runs/" + os.environ["GITHUB_RUN_ID"]
+              ),
+              "created_at": datetime.now(timezone.utc).isoformat(),
+          }
+          Path("published-release.json").write_text(json.dumps(release, indent=2) + "\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("## Published InvestMind release\n\n")
+              summary.write(f"Commit: `{revision}`\n\n")
+              summary.write(f"Image: `{references[0]}`\n\n")
+              summary.write("Download the release artifact to select this version for a manual deploy.\n")
+          PY
+
+      - name: Upload the release metadata
+        uses: actions/upload-artifact@v7
+        with:
+          name: investmind-release-${{ github.sha }}
+          path: published-release.json
+          if-no-files-found: error
+          retention-days: 14

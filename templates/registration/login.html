@@ -1,0 +1,191 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Sign in | InvestMind AI</title>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+
+    <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/auth-branding.css' %}" />
+  </head>
+
+  <body class="auth-body">
+    <main class="auth-layout">
+      <section class="auth-brand-panel">
+        <div class="auth-brand-content">
+          <div class="auth-logo">
+            <div class="brand-symbol">
+              <span class="brand-symbol-mark"> IM </span>
+            </div>
+
+            <div class="brand-copy">
+              <div class="brand-title-line">
+                <span class="brand-name"> InvestMind </span>
+                <span class="brand-ai"> AI </span>
+              </div>
+
+              <span class="brand-byline">
+                By Mariana Piccolo de Carvalho
+              </span>
+            </div>
+          </div>
+
+          <div class="auth-brand-message">
+            <span class="auth-eyebrow"> PORTFOLIO INTELLIGENCE </span>
+
+            <h1>Understand your investments with greater clarity.</h1>
+
+            <p>
+              Portfolio analytics, financial intelligence and AI-assisted
+              insights in one secure platform.
+            </p>
+          </div>
+
+          <div class="auth-principles">
+            <div class="auth-principle">
+              <i class="bi bi-shield-check"></i>
+
+              <div>
+                <strong> Deterministic analytics </strong>
+
+                <span> Financial metrics are calculated by the backend. </span>
+              </div>
+            </div>
+
+            <div class="auth-principle">
+              <i class="bi bi-stars"></i>
+
+              <div>
+                <strong> AI-assisted interpretation </strong>
+
+                <span>
+                  AI explains trusted portfolio data and financial knowledge.
+                </span>
+              </div>
+            </div>
+
+            <div class="auth-principle">
+              <i class="bi bi-lock"></i>
+
+              <div>
+                <strong> Controlled access </strong>
+
+                <span>
+                  Portfolio information remains scoped to authenticated users.
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <span class="auth-footer-copy">
+          InvestMind AI · Portfolio Intelligence
+        </span>
+      </section>
+
+      <section class="auth-form-panel">
+        <div class="auth-form-wrapper">
+          <div class="auth-mobile-brand">
+            <div class="brand-symbol">
+              <span class="brand-symbol-mark"> IM </span>
+            </div>
+
+            <div class="brand-copy">
+              <span class="auth-mobile-name"> InvestMind AI </span>
+              <span class="brand-byline">
+                By Mariana Piccolo de Carvalho
+              </span>
+            </div>
+          </div>
+
+          <div class="auth-form-heading">
+            <span class="page-eyebrow"> SECURE ACCESS </span>
+
+            <h2>Welcome back</h2>
+
+            <p>Sign in to access your investment dashboard.</p>
+          </div>
+
+          {% if form.errors %}
+
+          <div class="auth-error" role="alert">
+            <i class="bi bi-exclamation-circle"></i>
+
+            <span> The username or password is incorrect. </span>
+          </div>
+
+          {% endif %}
+
+          <form method="post" class="auth-form">
+            {% csrf_token %} {% if next %}
+            <input type="hidden" name="next" value="{{ next }}" />
+            {% endif %}
+
+            <div class="auth-field">
+              <label for="{{ form.username.id_for_label }}"> Username </label>
+
+              <div class="auth-input-wrapper">
+                <i class="bi bi-person"></i>
+
+                <input
+                  type="text"
+                  name="{{ form.username.html_name }}"
+                  id="{{ form.username.id_for_label }}"
+                  class="auth-input"
+                  autocomplete="username"
+                  autofocus
+                  required
+                />
+              </div>
+            </div>
+
+            <div class="auth-field">
+              <label for="{{ form.password.id_for_label }}"> Password </label>
+
+              <div class="auth-input-wrapper">
+                <i class="bi bi-lock"></i>
+
+                <input
+                  type="password"
+                  name="{{ form.password.html_name }}"
+                  id="{{ form.password.id_for_label }}"
+                  class="auth-input"
+                  autocomplete="current-password"
+                  required
+                />
+              </div>
+            </div>
+
+            <button type="submit" class="auth-submit">
+              Sign in
+
+              <i class="bi bi-arrow-right"></i>
+            </button>
+          </form>
+
+          <div class="auth-security-note">
+            <i class="bi bi-shield-lock"></i>
+
+            <span>
+              Your session is managed securely by Django authentication.
+            </span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

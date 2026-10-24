@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% load static %}
+
+
+{% block title %}
+Performance | InvestMind AI
+{% endblock %}
+
+
+{% block content %}
+
+<section class="page-header">
+
+    <div>
+
+        <span class="page-eyebrow">
+            PERFORMANCE ANALYTICS
+        </span>
+
+        <h1 class="page-title">
+            Performance
+        </h1>
+
+        <p class="page-description">
+            Analyze historical portfolio returns
+            independently from external cash flows.
+        </p>
+
+    </div>
+
+</section>
+
+
+{% if selected_portfolio %}
+
+<section class="portfolio-heading">
+
+    <div>
+
+        <span class="section-label">
+            SELECTED PORTFOLIO
+        </span>
+
+        <h2>
+            {{ selected_portfolio.name }}
+        </h2>
+
+    </div>
+
+
+    <form
+        method="get"
+        class="portfolio-selector-form"
+    >
+
+        <select
+            name="portfolio"
+            class="portfolio-selector"
+            aria-label="Select portfolio"
+            onchange="this.form.submit()"
+        >
+
+            {% for portfolio in portfolios %}
+
+                <option
+                    value="{{ portfolio.id }}"
+                    {% if portfolio.id == selected_portfolio.id %}
+                        selected
+                    {% endif %}
+                >
+                    {{ portfolio.name }}
+                </option>
+
+            {% endfor %}
+
+        </select>
+
+    </form>
+
+</section>
+
+
+{% if performance.available %}
+
+<section class="metric-grid">
+
+    <article class="metric-card">
+
+        <div class="metric-card-header">
+
+            <span class="metric-label">
+                Time-Weighted Return
+            </span>
+
+            <span class="metric-icon">
+                <i class="bi bi-graph-up-arrow"></i>
+            </span>
+
+        </div>
+
+        <div
+            class="
+                metric-value
+                {% if performance.data.time_weighted_return_percentage > 0 %}
+                    metric-positive
+                {% elif performance.data.time_weighted_return_percentage < 0 %}
+                    metric-negative
+                {% endif %}
+            "
+        >
+            {% if performance.data.time_weighted_return_percentage > 0 %}+{% endif %}{{ performance.data.time_weighted_return_percentage|floatformat:"2g" }}%
+        </div>
+
+        <span class="metric-helper">
+            Cash-flow-adjusted historical return
+        </span>
+
+    </article>
+
+
+    <article class="metric-card">
+
+        <div class="metric-card-header">
+
+            <span class="metric-label">
+                Period Ending Value
+            </span>
+
+            <span class="metric-icon">
+                <i class="bi bi-wallet2"></i>
+            </span>
+
+        </div>
+
+        <div class="metric-value">
+            {{ currency_symbol }}
+            {{ performance.data.ending_value|floatformat:"2g" }}
+        </div>
+
+        <span class="metric-helper">
+            Value at the end of the analyzed period
+        </span>
+
+    </article>
+
+
+    <article class="metric-card">
+
+        <div class="metric-card-header">
+
+            <span class="metric-label">
+                Net Cash Flow
+            </span>
+
+            <span class="metric-icon">
+                <i class="bi bi-arrow-left-right"></i>
+            </span>
+
+        </div>
+
+        <div class="metric-value">
+            {{ currency_symbol }}
+            {{ performance.data.net_external_cash_flow|floatformat:"2g" }}
+        </div>
+
+        <span class="metric-helper">
+            Contributions minus withdrawals
+        </span>
+
+    </article>
+
+
+    <article class="metric-card">
+
+        <div class="metric-card-header">
+
+            <span class="metric-label">
+                Observations
+            </span>
+
+            <span class="metric-icon">
+                <i class="bi bi-calendar3"></i>
+            </span>
+
+        </div>
+
+        <div class="metric-value">
+            {{ performance.data.observations }}
+        </div>
+
+        <span class="metric-helper">
+            Historical valuation points
+        </span>
+
+    </article>
+
+</section>
+
+
+<section class="analytics-chart-grid">
+
+    <article class="dashboard-card analytics-chart-card">
+
+        <div class="card-heading">
+
+            <div>
+
+                <span class="section-label">
+                    CUMULATIVE PERFORMANCE
+                </span>
+
+                <h3>
+                    Time-Weighted Return
+                </h3>
+
+            </div>
+
+            <span class="analytics-period">
+                {{ performance.data.start_date|date:"d M Y" }}
+                –
+                {{ performance.data.end_date|date:"d M Y" }}
+            </span>
+
+        </div>
+
+        {% if performance_chart %}
+
+            <div class="analytics-chart-large">
+
+                <canvas
+                    id="performancePageChart"
+                    aria-label="Cumulative time-weighted return chart"
+                ></canvas>
+
+            </div>
+
+        {% endif %}
+
+    </article>
+
+
+    <article class="dashboard-card analytics-chart-card">
+
+        <div class="card-heading">
+
+            <div>
+
+                <span class="section-label">
+                    PERIOD RETURNS
+                </span>
+
+                <h3>
+                    Daily Return
+                </h3>
+
+            </div>
+
+        </div>
+
+        {% if daily_return_chart %}
+
+            <div class="analytics-chart-large">
+
+                <canvas
+                    id="dailyReturnChart"
+                    aria-label="Daily portfolio return chart"
+                ></canvas>
+
+            </div>
+
+        {% endif %}
+
+    </article>
+
+</section>
+
+
+<section class="dashboard-card performance-explanation">
+
+    <div class="performance-explanation-icon">
+        <i class="bi bi-info-circle"></i>
+    </div>
+
+    <div>
+
+        <span class="section-label">
+            HOW TO READ THIS
+        </span>
+
+        <h3>
+            Time-Weighted Return
+        </h3>
+
+        <p>
+            Time-weighted return measures portfolio
+            performance while reducing the impact of
+            deposits and withdrawals. This makes it
+            useful for evaluating the investment
+            strategy separately from the timing of
+            external cash flows.
+        </p>
+
+    </div>
+
+</section>
+
+
+{% else %}
+
+<section class="dashboard-card">
+
+    <div class="empty-state">
+
+        <i class="bi bi-graph-up"></i>
+
+        <strong>
+            Performance unavailable
+        </strong>
+
+        <span>
+            {{ performance.reason }}
+        </span>
+
+    </div>
+
+</section>
+
+{% endif %}
+
+
+{% else %}
+
+<section class="dashboard-card">
+
+    <div class="empty-state">
+
+        <i class="bi bi-briefcase"></i>
+
+        <strong>
+            No portfolio available
+        </strong>
+
+        <span>
+            Create a portfolio to analyze performance.
+        </span>
+
+    </div>
+
+</section>
+
+{% endif %}
+
+
+{% if performance_chart %}
+    {{ performance_chart|json_script:"performance-page-chart-data" }}
+{% endif %}
+
+{% if daily_return_chart %}
+    {{ daily_return_chart|json_script:"daily-return-chart-data" }}
+{% endif %}
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script
+    src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+></script>
+
+<script
+    src="{% static 'js/number_format.js' %}"
+></script>
+
+<script
+    src="{% static 'js/performance.js' %}"
+></script>
+
+{% endblock %}

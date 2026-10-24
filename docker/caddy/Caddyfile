@@ -1,0 +1,20 @@
+{
+	default_sni {$DEMO_HOST}
+	servers {
+		protocols h1 h2
+	}
+}
+
+https://{$DEMO_HOST} {
+	tls {
+		issuer acme {
+			dir https://acme-v02.api.letsencrypt.org/directory
+			profile shortlived
+		}
+	}
+
+	encode zstd gzip
+	reverse_proxy web:8000 {
+		header_up X-Forwarded-Proto https
+	}
+}

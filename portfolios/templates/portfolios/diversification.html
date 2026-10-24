@@ -1,0 +1,589 @@
+{% extends "base.html" %}
+{% load static %}
+
+
+{% block title %}
+Diversification | InvestMind AI
+{% endblock %}
+
+
+{% block content %}
+
+<section class="page-header">
+
+    <div>
+
+        <span class="page-eyebrow">
+            DIVERSIFICATION ANALYTICS
+        </span>
+
+        <h1 class="page-title">
+            Diversification
+        </h1>
+
+        <p class="page-description">
+            Analyze portfolio concentration,
+            allocation and cross-asset relationships.
+        </p>
+
+    </div>
+
+</section>
+
+
+{% if selected_portfolio %}
+
+<section class="portfolio-heading">
+
+    <div>
+
+        <span class="section-label">
+            SELECTED PORTFOLIO
+        </span>
+
+        <h2>
+            {{ selected_portfolio.name }}
+        </h2>
+
+    </div>
+
+
+    <form
+        method="get"
+        class="portfolio-selector-form"
+    >
+
+        <select
+            name="portfolio"
+            class="portfolio-selector"
+            aria-label="Select portfolio"
+            onchange="this.form.submit()"
+        >
+
+            {% for portfolio in portfolios %}
+
+                <option
+                    value="{{ portfolio.id }}"
+                    {% if portfolio.id == selected_portfolio.id %}
+                        selected
+                    {% endif %}
+                >
+                    {{ portfolio.name }}
+                </option>
+
+            {% endfor %}
+
+        </select>
+
+    </form>
+
+</section>
+
+
+{% if composition.available %}
+
+<section class="metric-grid">
+
+    <article class="metric-card">
+
+        <div class="metric-card-header">
+
+            <span class="metric-label">
+                Portfolio Positions
+            </span>
+
+            <span class="metric-icon">
+                <i class="bi bi-collection"></i>
+            </span>
+
+        </div>
+
+        <div class="metric-value">
+            {{ composition.data.positions_count }}
+        </div>
+
+        <span class="metric-helper">
+            Active positions in the portfolio
+        </span>
+
+    </article>
+
+
+    <article class="metric-card">
+
+        <div class="metric-card-header">
+
+            <span class="metric-label">
+                Portfolio Value
+            </span>
+
+            <span class="metric-icon">
+                <i class="bi bi-wallet2"></i>
+            </span>
+
+        </div>
+
+        <div class="metric-value">
+            {{ currency_symbol }}
+            {{ composition.data.total_market_value|floatformat:"2g" }}
+        </div>
+
+        <span class="metric-helper">
+            Current market value
+        </span>
+
+    </article>
+
+
+    <article class="metric-card">
+
+        <div class="metric-card-header">
+
+            <span class="metric-label">
+                Largest Position
+            </span>
+
+            <span class="metric-icon">
+                <i class="bi bi-bullseye"></i>
+            </span>
+
+        </div>
+
+        <div class="metric-value">
+            {{ composition.data.largest_position_percentage|floatformat:"2g" }}%
+        </div>
+
+        <span class="metric-helper">
+            Weight of the largest holding
+        </span>
+
+    </article>
+
+
+    <article class="metric-card">
+
+        <div class="metric-card-header">
+
+            <span class="metric-label">
+                Concentration Index
+            </span>
+
+            <span class="metric-icon">
+                <i class="bi bi-grid-3x3-gap"></i>
+            </span>
+
+        </div>
+
+        <div class="metric-value">
+            {{ composition.data.hhi_concentration_index|floatformat:"4g" }}
+        </div>
+
+        <span class="metric-helper">
+            HHI: higher values indicate greater concentration
+        </span>
+
+    </article>
+
+</section>
+
+
+<section class="analytics-chart-grid">
+
+    <article class="dashboard-card analytics-chart-card">
+
+        <div class="card-heading">
+
+            <div>
+
+                <span class="section-label">
+                    ASSET MIX
+                </span>
+
+                <h3>
+                    Asset Type Allocation
+                </h3>
+
+            </div>
+
+        </div>
+
+        {% if asset_type_chart %}
+
+            <div class="diversification-chart-layout">
+
+                <div class="diversification-doughnut">
+
+                    <canvas
+                        id="assetTypeChart"
+                        aria-label="Asset type allocation chart"
+                    ></canvas>
+
+                </div>
+
+                <div class="allocation-detail-list">
+
+                    {% for item in composition.data.asset_type_allocation %}
+
+                        <div class="allocation-detail-row">
+
+                            <span>
+                                {{ item.label }}
+                            </span>
+
+                            <strong>
+                                {{ item.allocation_percentage|floatformat:"2g" }}%
+                            </strong>
+
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+        {% endif %}
+
+    </article>
+
+
+    <article class="dashboard-card analytics-chart-card">
+
+        <div class="card-heading">
+
+            <div>
+
+                <span class="section-label">
+                    EXPOSURE
+                </span>
+
+                <h3>
+                    Sector Allocation
+                </h3>
+
+            </div>
+
+        </div>
+
+        {% if sector_chart %}
+
+            <div class="diversification-bar-chart">
+
+                <canvas
+                    id="sectorChart"
+                    aria-label="Sector allocation chart"
+                ></canvas>
+
+            </div>
+
+        {% endif %}
+
+    </article>
+
+</section>
+
+
+<section class="dashboard-card diversification-holdings-card">
+
+    <div class="card-heading">
+
+        <div>
+
+            <span class="section-label">
+                CONCENTRATION
+            </span>
+
+            <h3>
+                Top Holdings
+            </h3>
+
+        </div>
+
+    </div>
+
+
+    <div class="diversification-holdings">
+
+        {% for holding in composition.data.top_holdings %}
+
+            <div class="diversification-holding-row">
+
+                <div class="holding-identity">
+
+                    <div class="holding-symbol">
+                        {{ holding.ticker|slice:":2" }}
+                    </div>
+
+                    <div>
+
+                        <strong>
+                            {{ holding.ticker }}
+                        </strong>
+
+                        <span>
+                            {{ holding.asset_name }}
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="holding-allocation">
+
+                    <div class="holding-allocation-values">
+
+                        <span>
+                            {{ currency_symbol }}
+                            {{ holding.market_value|floatformat:"2g" }}
+                        </span>
+
+                        <strong>
+                            {{ holding.allocation_percentage|floatformat:"2g" }}%
+                        </strong>
+
+                    </div>
+
+                    <div class="allocation-progress">
+
+                        <div
+                            class="allocation-progress-fill"
+                            style="width: {{ holding.allocation_percentage }}%;"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        {% empty %}
+
+            <div class="empty-state">
+
+                <strong>
+                    No holdings available
+                </strong>
+
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+</section>
+
+
+<section class="dashboard-card correlation-card">
+
+    <div class="correlation-card-icon">
+        <i class="bi bi-diagram-3"></i>
+    </div>
+
+    <div class="correlation-card-content">
+
+        <span class="section-label">
+            CROSS-ASSET DIVERSIFICATION
+        </span>
+
+        {% if diversification.available %}
+
+            <h3>
+                Correlation Analysis
+            </h3>
+
+            <p>
+                Correlation analytics compare how
+                portfolio assets have historically
+                moved relative to one another.
+            </p>
+
+            <div class="correlation-metrics">
+
+                <div>
+
+                    <span>
+                        Assets
+                    </span>
+
+                    <strong>
+                        {{ diversification.data.asset_count }}
+                    </strong>
+
+                </div>
+
+                <div>
+
+                    <span>
+                        Comparable pairs
+                    </span>
+
+                    <strong>
+                        {{ diversification.data.comparable_pairs }}
+                    </strong>
+
+                </div>
+
+                <div>
+
+                    <span>
+                        Unavailable pairs
+                    </span>
+
+                    <strong>
+                        {{ diversification.data.unavailable_pairs }}
+                    </strong>
+
+                </div>
+
+                <div>
+
+                    <span>
+                        Average correlation
+                    </span>
+
+                    <strong>
+                        {% if diversification.data.average_pairwise_correlation != None %}
+                            {{ diversification.data.average_pairwise_correlation|floatformat:"4g" }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </strong>
+
+                </div>
+
+            </div>
+
+        {% else %}
+
+            <h3>
+                Correlation analysis unavailable
+            </h3>
+
+            <p>
+                {{ diversification.reason }}
+            </p>
+
+            <span class="correlation-note">
+                Portfolio composition and concentration
+                metrics above remain available because
+                they do not require cross-asset
+                correlation analysis.
+            </span>
+
+        {% endif %}
+
+    </div>
+
+</section>
+
+
+<section class="dashboard-card diversification-context-card">
+
+    <div class="performance-explanation-icon">
+        <i class="bi bi-info-circle"></i>
+    </div>
+
+    <div>
+
+        <span class="section-label">
+            INTERPRETING DIVERSIFICATION
+        </span>
+
+        <h3>
+            Concentration and correlation measure
+            different aspects of diversification
+        </h3>
+
+        <p>
+            Allocation metrics show how portfolio
+            value is distributed across holdings,
+            asset types and sectors. The concentration
+            index summarizes how concentrated those
+            weights are.
+        </p>
+
+        <p>
+            Correlation analytics require at least
+            two active assets because they compare
+            historical return relationships between
+            asset pairs.
+        </p>
+
+    </div>
+
+</section>
+
+
+{% else %}
+
+<section class="dashboard-card">
+
+    <div class="empty-state">
+
+        <i class="bi bi-pie-chart"></i>
+
+        <strong>
+            Portfolio composition unavailable
+        </strong>
+
+        <span>
+            {{ composition.reason }}
+        </span>
+
+    </div>
+
+</section>
+
+{% endif %}
+
+
+{% else %}
+
+<section class="dashboard-card">
+
+    <div class="empty-state">
+
+        <i class="bi bi-briefcase"></i>
+
+        <strong>
+            No portfolio available
+        </strong>
+
+        <span>
+            Create a portfolio to analyze diversification.
+        </span>
+
+    </div>
+
+</section>
+
+{% endif %}
+
+
+{% if asset_type_chart %}
+    {{ asset_type_chart|json_script:"asset-type-chart-data" }}
+{% endif %}
+
+{% if sector_chart %}
+    {{ sector_chart|json_script:"sector-chart-data" }}
+{% endif %}
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script
+    src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+></script>
+
+<script
+    src="{% static 'js/number_format.js' %}"
+></script>
+
+<script
+    src="{% static 'js/diversification.js' %}"
+></script>
+
+{% endblock %}

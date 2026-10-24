@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+{% load static portfolio_extras %}
+
+{% block title %}
+AI Analyst | InvestMind AI
+{% endblock %}
+
+{% block content %}
+
+<section class="page-header">
+
+    <div>
+
+        <span class="page-eyebrow">
+            PORTFOLIO INTELLIGENCE
+        </span>
+
+        <h1 class="page-title">
+            AI Analyst
+        </h1>
+
+        <p class="page-description">
+            Ask questions about your portfolio
+            using deterministic analytics,
+            approved tools and the InvestMind
+            knowledge base.
+        </p>
+
+    </div>
+
+</section>
+
+
+{% if selected_portfolio %}
+
+<section class="ai-analyst-portfolio-bar">
+
+    <div>
+
+        <span class="section-label">
+            SELECTED PORTFOLIO
+        </span>
+
+        <strong>
+            {{ selected_portfolio.name }}
+        </strong>
+
+    </div>
+
+
+    <form
+        method="get"
+        class="portfolio-selector-form"
+    >
+
+        <select
+            name="portfolio"
+            class="portfolio-selector"
+            aria-label="Select portfolio"
+            onchange="this.form.submit()"
+        >
+
+            {% for portfolio in portfolios %}
+
+                <option
+                    value="{{ portfolio.id }}"
+                    {% if portfolio.id == selected_portfolio.id %}
+                        selected
+                    {% endif %}
+                >
+                    {{ portfolio.name }}
+                </option>
+
+            {% endfor %}
+
+        </select>
+
+    </form>
+
+</section>
+
+
+<section class="ai-workspace">
+
+    <aside class="ai-conversation-panel">
+
+        <div class="ai-conversation-panel-header">
+
+            <div>
+
+                <span class="section-label">
+                    CONVERSATIONS
+                </span>
+
+                <h2>
+                    History
+                </h2>
+
+            </div>
+
+
+            <a
+                href="{% url 'web:ai-analyst' %}?portfolio={{ selected_portfolio.id }}"
+                class="ai-new-chat-button"
+                title="New conversation"
+            >
+                <i class="bi bi-plus-lg"></i>
+            </a>
+
+        </div>
+
+
+        <div class="ai-conversation-list">
+
+            {% for conversation in conversations %}
+
+                <a
+                    href="{% url 'web:ai-analyst' %}?portfolio={{ selected_portfolio.id }}&conversation={{ conversation.id }}"
+                    class="
+                        ai-conversation-item
+
+                        {% if selected_conversation and selected_conversation.id == conversation.id %}
+                            active
+                        {% endif %}
+                    "
+                >
+
+                    <i class="bi bi-chat-left-text"></i>
+
+                    <div>
+
+                        <strong>
+                            {{ conversation.title|truncatechars:42 }}
+                        </strong>
+
+                        <span>
+                            {{ conversation.updated_at|date:"d M Y · H:i" }}
+                        </span>
+
+                    </div>
+
+                </a>
+
+            {% empty %}
+
+                <div class="ai-conversation-empty">
+
+                    <i class="bi bi-chat-left"></i>
+
+                    <span>
+                        No conversations yet.
+                    </span>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    </aside>
+
+
+    <section class="ai-chat-card">
+
+        <div
+            class="ai-chat-messages"
+            id="aiChatMessages"
+        >
+
+            {% if selected_conversation %}
+
+                {% for message in selected_messages %}
+
+                    <div
+                        class="
+                            ai-message
+
+                            {% if message.role == 'user' %}
+                                ai-message-user
+                            {% else %}
+                                ai-message-assistant
+                            {% endif %}
+                        "
+                    >
+
+                        <div class="ai-message-avatar">
+
+                            {% if message.role == "user" %}
+
+                                <i class="bi bi-person"></i>
+
+                            {% else %}
+
+                                <i class="bi bi-stars"></i>
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <div class="ai-message-content">
+
+                            <div class="ai-message-heading">
+
+                                <strong>
+
+                                    {% if message.role == "user" %}
+                                        You
+                                    {% else %}
+                                        InvestMind AI
+                                    {% endif %}
+
+                                </strong>
+
+                                <span>
+                                    {{ message.created_at|date:"H:i" }}
+                                </span>
+
+                            </div>
+
+                            <div class="ai-message-text">
+
+                                {% if message.role == "assistant" %}
+                            
+                                    {{ message.content|render_markdown }}
+                            
+                                {% else %}
+                            
+                                    {{ message.content }}
+                            
+                                {% endif %}
+                            
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                {% endfor %}
+
+
+            {% else %}
+
+                <div class="ai-welcome">
+
+                    <div class="ai-welcome-icon">
+                        <i class="bi bi-stars"></i>
+                    </div>
+
+                    <span class="section-label">
+                        INVESTMIND AI
+                    </span>
+
+                    <h2>
+                        What would you like to
+                        understand about your portfolio?
+                    </h2>
+
+                    <p>
+                        Ask about performance, risk,
+                        concentration, diversification
+                        or portfolio concepts.
+                    </p>
+
+
+                    <div class="ai-suggestion-grid">
+
+                        <button
+                            type="button"
+                            class="ai-suggestion"
+                            data-question="How has my portfolio performed?"
+                        >
+                            <i class="bi bi-graph-up-arrow"></i>
+
+                            <span>
+                                How has my portfolio performed?
+                            </span>
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="ai-suggestion"
+                            data-question="What are the main risks in my portfolio?"
+                        >
+                            <i class="bi bi-shield-exclamation"></i>
+
+                            <span>
+                                What are my main risks?
+                            </span>
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="ai-suggestion"
+                            data-question="How diversified is my portfolio?"
+                        >
+                            <i class="bi bi-pie-chart"></i>
+
+                            <span>
+                                How diversified is my portfolio?
+                            </span>
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="ai-suggestion"
+                            data-question="Explain my portfolio concentration."
+                        >
+                            <i class="bi bi-bullseye"></i>
+
+                            <span>
+                                Explain my concentration.
+                            </span>
+                        </button>
+
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+
+            <div
+                class="ai-message ai-message-assistant ai-thinking-message"
+                id="aiThinkingMessage"
+                hidden
+            >
+
+                <div class="ai-message-avatar">
+                    <i class="bi bi-stars"></i>
+                </div>
+
+                <div class="ai-message-content">
+
+                    <div class="ai-message-heading">
+
+                        <strong>
+                            InvestMind AI
+                        </strong>
+
+                    </div>
+
+                    <div class="ai-thinking">
+
+                        <span></span>
+                        <span></span>
+                        <span></span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="ai-chat-composer">
+
+            {% if form.non_field_errors %}
+
+                <div class="ai-chat-error">
+
+                    <i class="bi bi-exclamation-circle"></i>
+
+                    <div>
+
+                        {% for error in form.non_field_errors %}
+
+                            <span>
+                                {{ error }}
+                            </span>
+
+                        {% endfor %}
+
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+
+            <form
+                method="post"
+                id="aiQuestionForm"
+                action="{% url 'web:ai-analyst' %}?portfolio={{ selected_portfolio.id }}"
+            >
+
+                {% csrf_token %}
+
+
+                {% if selected_conversation %}
+
+                    <input
+                        type="hidden"
+                        name="conversation"
+                        value="{{ selected_conversation.id }}"
+                    >
+
+                {% endif %}
+
+
+                <div class="ai-composer-box">
+
+                    {{ form.question }}
+
+                    <button
+                        type="submit"
+                        class="ai-send-button"
+                        id="aiSendButton"
+                        aria-label="Send question"
+                    >
+                        <i class="bi bi-arrow-up"></i>
+                    </button>
+
+                </div>
+
+
+                {% if form.question.errors %}
+
+                    <div class="form-error">
+                        {{ form.question.errors.0 }}
+                    </div>
+
+                {% endif %}
+
+
+                <div class="ai-composer-footer">
+
+                    <span>
+                        AI explanations may be imperfect.
+                        Portfolio calculations come from
+                        deterministic InvestMind services.
+                    </span>
+
+                    <span>
+                        2,000 character limit
+                    </span>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </section>
+
+</section>
+
+
+{% else %}
+
+<section class="dashboard-card portfolio-empty-state">
+
+    <div class="portfolio-empty-icon">
+        <i class="bi bi-stars"></i>
+    </div>
+
+    <h2>
+        No portfolio available
+    </h2>
+
+    <p>
+        Create a portfolio before starting
+        a conversation with the AI Analyst.
+    </p>
+
+    <a
+        href="{% url 'web:portfolio' %}"
+        class="primary-action-button"
+    >
+        Create Portfolio
+    </a>
+
+</section>
+
+{% endif %}
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script
+    src="{% static 'js/ai_analyst.js' %}"
+></script>
+
+{% endblock %}

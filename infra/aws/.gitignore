@@ -1,0 +1,16 @@
+# Local Terraform cache and runtime files
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Machine-specific input files
+terraform.tfvars
+terraform.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+*.auto.tfvars.json.tmp
+
+# Commit .terraform.lock.hcl: it pins the provider selected by init.

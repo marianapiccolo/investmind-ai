@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}
+Portfolio | InvestMind AI
+{% endblock %}
+
+{% block content %}
+
+<section class="page-header">
+  <div>
+    <span class="page-eyebrow">PORTFOLIO MANAGEMENT</span>
+
+    <h1 class="page-title">Portfolios</h1>
+
+    <p class="page-description">
+      Organize investment portfolios and manage the accounts used throughout
+      InvestMind AI.
+    </p>
+  </div>
+
+  <button
+    class="primary-action-button"
+    type="button"
+    data-bs-toggle="modal"
+    data-bs-target="#createPortfolioModal"
+  >
+    <i class="bi bi-plus-lg"></i>
+    <span>New Portfolio</span>
+  </button>
+</section>
+
+{% if portfolios %}
+
+<section class="portfolio-management-grid">
+  {% for portfolio in portfolios %}
+
+  <article
+    class="portfolio-management-card {% if selected_portfolio and portfolio.id == selected_portfolio.id %}selected{% endif %}"
+  >
+    <div class="portfolio-card-top">
+      <div class="portfolio-card-icon">
+        <i class="bi bi-briefcase"></i>
+      </div>
+
+      {% if selected_portfolio and portfolio.id == selected_portfolio.id %}
+      <span class="portfolio-selected-badge">Selected</span>
+      {% endif %}
+    </div>
+
+    <div class="portfolio-card-body">
+      <span class="section-label">PORTFOLIO</span>
+
+      <h2>{{ portfolio.name }}</h2>
+
+      <div class="portfolio-card-meta">
+        <div>
+          <span>Currency</span>
+          <strong>{{ portfolio.currency }}</strong>
+        </div>
+
+        <div>
+          <span>Created</span>
+          <strong>{{ portfolio.created_at|date:"d M Y" }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="portfolio-card-footer">
+      <a
+        class="portfolio-select-link"
+        href="{% url 'web:portfolio' %}?portfolio={{ portfolio.id }}"
+      >
+        {% if selected_portfolio and portfolio.id == selected_portfolio.id %}
+        Current portfolio {% else %} Select portfolio {% endif %}
+
+        <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+  </article>
+
+  {% endfor %}
+</section>
+
+{% if selected_portfolio %}
+
+<section class="dashboard-card selected-portfolio-panel">
+  <div>
+    <span class="section-label">CURRENT PORTFOLIO</span>
+
+    <h3>{{ selected_portfolio.name }}</h3>
+
+    <p>This portfolio is currently selected for portfolio management.</p>
+  </div>
+
+  <div class="selected-portfolio-actions">
+    <a
+      href="{% url 'web:dashboard' %}?portfolio={{ selected_portfolio.id }}"
+      class="secondary-action-button"
+    >
+      <i class="bi bi-grid-1x2"></i>
+      Dashboard
+    </a>
+
+    <a
+      href="{% url 'web:performance' %}?portfolio={{ selected_portfolio.id }}"
+      class="secondary-action-button"
+    >
+      <i class="bi bi-bar-chart"></i>
+      Analytics
+    </a>
+  </div>
+</section>
+
+{% endif %} {% else %}
+
+<section class="dashboard-card portfolio-empty-state">
+  <div class="portfolio-empty-icon">
+    <i class="bi bi-briefcase"></i>
+  </div>
+
+  <h2>Create your first portfolio</h2>
+
+  <p>
+    Start by creating a portfolio. You can then add investment transactions and
+    analyze its performance, risk and diversification.
+  </p>
+
+  <button
+    class="primary-action-button"
+    type="button"
+    data-bs-toggle="modal"
+    data-bs-target="#createPortfolioModal"
+  >
+    <i class="bi bi-plus-lg"></i>
+    Create Portfolio
+  </button>
+</section>
+
+{% endif %}
+
+<div
+  class="modal fade"
+  id="createPortfolioModal"
+  tabindex="-1"
+  aria-labelledby="createPortfolioModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content investmind-modal">
+      <div class="modal-header">
+        <div>
+          <span class="section-label">NEW PORTFOLIO</span>
+
+          <h2 class="modal-title" id="createPortfolioModalLabel">
+            Create Portfolio
+          </h2>
+        </div>
+
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+
+        <div class="modal-body">
+          <div class="form-field">
+            <label for="{{ form.name.id_for_label }}"> Portfolio name </label>
+
+            {{ form.name }} {% if form.name.errors %}
+            <div class="form-error">{{ form.name.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          <div class="form-field">
+            <label for="{{ form.currency.id_for_label }}"> Currency </label>
+
+            {{ form.currency }}
+
+            <span class="form-help">
+              Use a 3-letter currency code, such as EUR, USD or GBP.
+            </span>
+
+            {% if form.currency.errors %}
+            <div class="form-error">{{ form.currency.errors.0 }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="secondary-action-button"
+            data-bs-dismiss="modal"
+          >
+            Cancel
+          </button>
+
+          <button type="submit" class="primary-action-button">
+            Create Portfolio
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% if form.errors %}
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const modalElement = document.getElementById("createPortfolioModal");
+
+    if (!modalElement) {
+      return;
+    }
+
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+  });
+</script>
+
+{% endif %}
+
+{% endblock %}

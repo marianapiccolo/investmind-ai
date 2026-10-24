@@ -1,0 +1,619 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+Transactions | InvestMind AI
+{% endblock %}
+
+
+{% block content %}
+
+<section class="page-header">
+
+    <div>
+
+        <span class="page-eyebrow">
+            PORTFOLIO MANAGEMENT
+        </span>
+
+        <h1 class="page-title">
+            Transactions
+        </h1>
+
+        <p class="page-description">
+            Record portfolio purchases and sales
+            using the same transaction engine
+            that maintains portfolio positions.
+        </p>
+
+    </div>
+
+
+    {% if selected_portfolio %}
+
+        <button
+            class="primary-action-button"
+            type="button"
+            data-bs-toggle="modal"
+            data-bs-target="#createTransactionModal"
+        >
+            <i class="bi bi-plus-lg"></i>
+
+            <span>
+                New Transaction
+            </span>
+        </button>
+
+    {% endif %}
+
+</section>
+
+
+{% if selected_portfolio %}
+
+<section class="portfolio-heading">
+
+    <div>
+
+        <span class="section-label">
+            SELECTED PORTFOLIO
+        </span>
+
+        <h2>
+            {{ selected_portfolio.name }}
+        </h2>
+
+    </div>
+
+
+    <form
+        method="get"
+        class="portfolio-selector-form"
+    >
+
+        <select
+            name="portfolio"
+            class="portfolio-selector"
+            aria-label="Select portfolio"
+            onchange="this.form.submit()"
+        >
+
+            {% for portfolio in portfolios %}
+
+                <option
+                    value="{{ portfolio.id }}"
+                    {% if portfolio.id == selected_portfolio.id %}
+                        selected
+                    {% endif %}
+                >
+                    {{ portfolio.name }}
+                </option>
+
+            {% endfor %}
+
+        </select>
+
+    </form>
+
+</section>
+
+
+<section class="transaction-toolbar">
+
+    <div>
+
+        <span class="section-label">
+            TRANSACTION HISTORY
+        </span>
+
+        <h3>
+            Activity
+        </h3>
+
+    </div>
+
+
+    <div class="transaction-toolbar-actions">
+
+        <span class="transaction-count">
+            {{ transactions|length }}
+            transaction{{ transactions|length|pluralize }}
+        </span>
+
+
+        <form
+            method="get"
+            class="transaction-filter-form"
+        >
+
+            <input
+                type="hidden"
+                name="portfolio"
+                value="{{ selected_portfolio.id }}"
+            >
+
+            <select
+                name="type"
+                class="transaction-filter"
+                aria-label="Filter transaction type"
+                onchange="this.form.submit()"
+            >
+
+                <option
+                    value=""
+                    {% if not transaction_type_filter %}
+                        selected
+                    {% endif %}
+                >
+                    All types
+                </option>
+
+                {% for value, label in transaction_type_choices %}
+
+                    <option
+                        value="{{ value }}"
+                        {% if transaction_type_filter == value %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ label }}
+                    </option>
+
+                {% endfor %}
+
+            </select>
+
+        </form>
+
+    </div>
+
+</section>
+
+
+<section class="dashboard-card transaction-table-card">
+
+    {% if transactions %}
+
+        <div class="transaction-table-wrapper">
+
+            <table class="transaction-table">
+
+                <thead>
+
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Asset</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Transaction Value</th>
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    {% for row in transactions %}
+
+                        <tr>
+
+                            <td>
+
+                                <div class="transaction-date">
+
+                                    <strong>
+                                        {{ row.transaction_date|date:"d M Y" }}
+                                    </strong>
+
+                                    <span>
+                                        {{ row.transaction_date|date:"H:i" }}
+                                    </span>
+
+                                </div>
+
+                            </td>
+
+
+                            <td>
+
+                                <span
+                                    class="
+                                        transaction-type-badge
+
+                                        {% if row.transaction_type == 'BUY' %}
+                                            transaction-buy
+                                        {% else %}
+                                            transaction-sell
+                                        {% endif %}
+                                    "
+                                >
+                                    {% if row.transaction_type == "BUY" %}
+                                        <i class="bi bi-arrow-down-left"></i>
+                                    {% else %}
+                                        <i class="bi bi-arrow-up-right"></i>
+                                    {% endif %}
+
+                                    {{ row.transaction_type }}
+                                </span>
+
+                            </td>
+
+
+                            <td>
+
+                                <div class="transaction-asset">
+
+                                    <div class="transaction-asset-symbol">
+                                        {{ row.ticker|slice:":2" }}
+                                    </div>
+
+                                    <div>
+
+                                        <strong>
+                                            {{ row.ticker }}
+                                        </strong>
+
+                                        <span>
+                                            {{ row.asset_name }}
+                                        </span>
+
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+
+                            <td>
+                                {{ row.quantity|floatformat:"4g" }}
+                            </td>
+
+
+                            <td>
+                                {{ row.currency_symbol }}
+                                {{ row.price|floatformat:"2g" }}
+                            </td>
+
+
+                            <td class="transaction-value">
+
+                                <strong>
+                                    {{ row.currency_symbol }}
+                                    {{ row.gross_amount|floatformat:"2g" }}
+                                </strong>
+
+                                <span>
+                                    {{ row.asset_currency }}
+                                </span>
+
+                            </td>
+
+                        </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    {% else %}
+
+        <div class="transaction-empty-state">
+
+            <div class="transaction-empty-icon">
+                <i class="bi bi-arrow-left-right"></i>
+            </div>
+
+            <strong>
+                No transactions found
+            </strong>
+
+            <span>
+                {% if transaction_type_filter %}
+                    No {{ transaction_type_filter }}
+                    transactions match this filter.
+                {% else %}
+                    Record the first transaction
+                    for this portfolio.
+                {% endif %}
+            </span>
+
+        </div>
+
+    {% endif %}
+
+</section>
+
+
+<div
+    class="modal fade"
+    id="createTransactionModal"
+    tabindex="-1"
+    aria-labelledby="createTransactionModalLabel"
+    aria-hidden="true"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content investmind-modal">
+
+            <div class="modal-header">
+
+                <div>
+
+                    <span class="section-label">
+                        NEW TRANSACTION
+                    </span>
+
+                    <h2
+                        class="modal-title"
+                        id="createTransactionModalLabel"
+                    >
+                        Record Transaction
+                    </h2>
+
+                    <span class="transaction-modal-portfolio">
+                        {{ selected_portfolio.name }}
+                    </span>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+
+            </div>
+
+
+            <form
+                method="post"
+                action="{% url 'web:transactions' %}?portfolio={{ selected_portfolio.id }}"
+            >
+
+                {% csrf_token %}
+
+
+                <div class="modal-body">
+
+                    {% if form.non_field_errors %}
+
+                        <div class="transaction-form-alert">
+
+                            <i class="bi bi-exclamation-circle"></i>
+
+                            <div>
+
+                                {% for error in form.non_field_errors %}
+
+                                    <span>
+                                        {{ error }}
+                                    </span>
+
+                                {% endfor %}
+
+                            </div>
+
+                        </div>
+
+                    {% endif %}
+
+
+                    <div class="transaction-form-grid">
+
+                        <div class="form-field">
+
+                            <label
+                                for="{{ form.transaction_type.id_for_label }}"
+                            >
+                                Transaction type
+                            </label>
+
+                            {{ form.transaction_type }}
+
+                            {% if form.transaction_type.errors %}
+
+                                <div class="form-error">
+                                    {{ form.transaction_type.errors.0 }}
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <div class="form-field">
+
+                            <label
+                                for="{{ form.asset.id_for_label }}"
+                            >
+                                Asset
+                            </label>
+
+                            {{ form.asset }}
+
+                            {% if form.asset.errors %}
+
+                                <div class="form-error">
+                                    {{ form.asset.errors.0 }}
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <div class="form-field">
+
+                            <label
+                                for="{{ form.quantity.id_for_label }}"
+                            >
+                                Quantity
+                            </label>
+
+                            {{ form.quantity }}
+
+                            {% if form.quantity.errors %}
+
+                                <div class="form-error">
+                                    {{ form.quantity.errors.0 }}
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <div class="form-field">
+
+                            <label
+                                for="{{ form.price.id_for_label }}"
+                            >
+                                Price per unit
+                            </label>
+
+                            {{ form.price }}
+
+                            {% if form.price.errors %}
+
+                                <div class="form-error">
+                                    {{ form.price.errors.0 }}
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <div class="form-field transaction-date-field">
+
+                            <label
+                                for="{{ form.transaction_date.id_for_label }}"
+                            >
+                                Transaction date
+                            </label>
+
+                            {{ form.transaction_date }}
+
+                            {% if form.transaction_date.errors %}
+
+                                <div class="form-error">
+                                    {{ form.transaction_date.errors.0 }}
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="transaction-form-note">
+
+                        <i class="bi bi-info-circle"></i>
+
+                        <span>
+                            BUY and SELL operations are validated
+                            by the portfolio transaction service.
+                            Positions are updated automatically.
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="modal-footer">
+
+                    <button
+                        type="button"
+                        class="secondary-action-button"
+                        data-bs-dismiss="modal"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="primary-action-button"
+                    >
+                        Record Transaction
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+{% else %}
+
+<section class="dashboard-card portfolio-empty-state">
+
+    <div class="portfolio-empty-icon">
+        <i class="bi bi-arrow-left-right"></i>
+    </div>
+
+    <h2>
+        No portfolio available
+    </h2>
+
+    <p>
+        Create a portfolio before recording
+        investment transactions.
+    </p>
+
+    <a
+        href="{% url 'web:portfolio' %}"
+        class="primary-action-button"
+    >
+        <i class="bi bi-plus-lg"></i>
+
+        Create Portfolio
+    </a>
+
+</section>
+
+{% endif %}
+
+
+{% if selected_portfolio %}
+{% if form.errors or request.GET.create == "1" %}
+
+<script>
+    document.addEventListener(
+        "DOMContentLoaded",
+        () => {
+            const modalElement =
+                document.getElementById(
+                    "createTransactionModal"
+                );
+
+            if (!modalElement) {
+                return;
+            }
+
+            const modal =
+                new bootstrap.Modal(
+                    modalElement
+                );
+
+            modal.show();
+        }
+    );
+</script>
+
+{% endif %}
+{% endif %}
+
+{% endblock %}

@@ -401,24 +401,35 @@ def _get_selected_portfolio(
     request,
     portfolios,
 ):
+    session_key = "selected_portfolio_id"
     portfolio_id = request.GET.get("portfolio")
 
-    if portfolio_id is None:
-        return portfolios.first()
+    if portfolio_id is not None:
+        try:
+            portfolio_id = int(portfolio_id)
 
-    try:
-        portfolio_id = int(portfolio_id)
+        except (TypeError, ValueError) as exc:
+            raise Http404("Portfolio not found.") from exc
 
-    except (
-        TypeError,
-        ValueError,
-    ) as exc:
-        raise Http404("Portfolio not found.") from exc
+        selected_portfolio = get_object_or_404(portfolios, pk=portfolio_id)
 
-    return get_object_or_404(
-        portfolios,
-        pk=portfolio_id,
-    )
+    else:
+        remembered_id = request.session.get(session_key)
+        selected_portfolio = None
+
+        if isinstance(remembered_id, int) and remembered_id > 0:
+            selected_portfolio = portfolios.filter(pk=remembered_id).first()
+
+        if selected_portfolio is None:
+            selected_portfolio = portfolios.first()
+
+    if selected_portfolio is None:
+        request.session.pop(session_key, None)
+
+    elif request.session.get(session_key) != selected_portfolio.pk:
+        request.session[session_key] = selected_portfolio.pk
+
+    return selected_portfolio
 
 
 @login_required

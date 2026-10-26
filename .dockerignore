@@ -39,3 +39,12 @@ media
 **/*.auto.tfvars
 **/*.auto.tfvars.json
 **/*.auto.tfvars.json.tmp
+
+# Private keys and database backups
+*.pem
+*.key
+*.p12
+*.pfx
+*.dump
+*.backup
+*.sql.gz

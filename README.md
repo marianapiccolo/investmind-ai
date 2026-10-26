@@ -1,5 +1,9 @@
 # InvestMind AI
 
+> **Project purpose:** This is a personal project developed exclusively for learning, experimentation and professional development, bringing together economics, software engineering and artificial intelligence. It is a demonstration application, not a commercial financial service, and does not provide investment advice.
+
+# InvestMind AI
+
 InvestMind AI is an investment portfolio analysis application built with Django,
 PostgreSQL and a controlled AI explanation layer. It combines portfolio and
 transaction management, deterministic analytics, market data integration,
@@ -33,16 +37,16 @@ retrieved reference material. Missing analytics remain explicitly unavailable.
 
 ## Technology stack
 
-| Area | Components |
-| --- | --- |
-| Application | Python 3.14, Django 6.1, Django REST Framework |
-| Data | PostgreSQL 18, pgvector, Redis |
-| Background processing | Celery worker and Celery Beat |
-| External providers | Alpha Vantage and OpenAI |
-| Production runtime | Gunicorn, WhiteNoise and Caddy |
-| Packaging | Docker and Docker Compose |
-| Cloud infrastructure | AWS EC2 ARM64, Terraform and Ansible |
-| Delivery | GitHub Actions and GitHub Container Registry (GHCR) |
+| Area                  | Components                                          |
+| --------------------- | --------------------------------------------------- |
+| Application           | Python 3.14, Django 6.1, Django REST Framework      |
+| Data                  | PostgreSQL 18, pgvector, Redis                      |
+| Background processing | Celery worker and Celery Beat                       |
+| External providers    | Alpha Vantage and OpenAI                            |
+| Production runtime    | Gunicorn, WhiteNoise and Caddy                      |
+| Packaging             | Docker and Docker Compose                           |
+| Cloud infrastructure  | AWS EC2 ARM64, Terraform and Ansible                |
+| Delivery              | GitHub Actions and GitHub Container Registry (GHCR) |
 
 Dependency versions are defined in the requirements files. The published demo
 application image targets `linux/arm64`.
@@ -208,21 +212,21 @@ The first stable version is identified by the annotated `v1.0.0` tag after its
 
 ## Documentation
 
-| Guide | Purpose |
-| --- | --- |
-| [AI architecture](docs/ai-architecture.md) | Analytics, reports, tool calling, conversations and RAG |
-| [Local production verification](docs/production-local.md) | Gunicorn, static assets and production settings on loopback |
-| [AWS demo operations](docs/aws-demo-operations.md) | Routine startup, access, deployment and shutdown |
-| [Registry delivery](docs/registry-delivery.md) | CI publication, release selection and private image deployment |
-| [Archive deployment](docs/aws-demo-deploy.md) | Alternative image build and SSH transfer from the Mac |
-| [Backup and restore verification](docs/aws-demo-backup.md) | Database export and isolated restoration tests |
-| [Functional validation](docs/functional-validation-review.md) | Recorded results, calculation conventions and limitations |
-| [Report output and risk presentation](docs/demo-report-output-limit.md) | Output-limit diagnosis, runtime setting and UI verification |
-| [Number presentation](docs/number-presentation.md) | Grouping, precision, chart labels and unavailable metrics |
-| [Sample data](docs/sample-data.md) | Market observations, purchase preview and optional portfolio creation |
-| [Report evidence validation](docs/report-evidence-validation.md) | Boolean representation and strict evidence comparison |
-| [Release process](docs/release-process.md) | Source versioning, CI publication and deployment identity |
-| [Changelog](CHANGELOG.md) | Implemented capabilities and validated baseline |
+| Guide                                                                   | Purpose                                                               |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [AI architecture](docs/ai-architecture.md)                              | Analytics, reports, tool calling, conversations and RAG               |
+| [Local production verification](docs/production-local.md)               | Gunicorn, static assets and production settings on loopback           |
+| [AWS demo operations](docs/aws-demo-operations.md)                      | Routine startup, access, deployment and shutdown                      |
+| [Registry delivery](docs/registry-delivery.md)                          | CI publication, release selection and private image deployment        |
+| [Archive deployment](docs/aws-demo-deploy.md)                           | Alternative image build and SSH transfer from the Mac                 |
+| [Backup and restore verification](docs/aws-demo-backup.md)              | Database export and isolated restoration tests                        |
+| [Functional validation](docs/functional-validation-review.md)           | Recorded results, calculation conventions and limitations             |
+| [Report output and risk presentation](docs/demo-report-output-limit.md) | Output-limit diagnosis, runtime setting and UI verification           |
+| [Number presentation](docs/number-presentation.md)                      | Grouping, precision, chart labels and unavailable metrics             |
+| [Sample data](docs/sample-data.md)                                      | Market observations, purchase preview and optional portfolio creation |
+| [Report evidence validation](docs/report-evidence-validation.md)        | Boolean representation and strict evidence comparison                 |
+| [Release process](docs/release-process.md)                              | Source versioning, CI publication and deployment identity             |
+| [Changelog](CHANGELOG.md)                                               | Implemented capabilities and validated baseline                       |
 
 ## Scope and limitations
 

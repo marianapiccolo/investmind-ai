@@ -14,6 +14,35 @@ automated CI checks, private image publication and a working AWS demonstration
 deployment. Deployment is initiated from the operator's Mac; image publication
 does not automatically update or start the AWS instance.
 
+## Application preview
+
+Screenshots from the demonstration portfolio. Saved AI reports
+reflect the portfolio context captured when they were generated.
+
+### Dashboard
+
+Portfolio overview with key metrics, historical performance and asset allocation.
+
+![Portfolio dashboard](docs/images/dashboard.png)
+
+### Risk analytics
+
+Volatility, downside deviation, maximum drawdown and historical return extremes.
+
+![Portfolio risk analytics](docs/images/risk.png)
+
+### AI Analyst
+
+AI assistant explaining portfolio holdings and concentration using backend analytics.
+
+![AI portfolio assistant](docs/images/ai-analyst.png)
+
+### AI Report
+
+Saved structured report with portfolio analysis and automated evaluation results.
+
+![Structured AI portfolio report](docs/images/ai-report.png)
+
 ## Features
 
 - Portfolio, asset, position and buy/sell transaction management.

@@ -167,7 +167,6 @@ resource "aws_instance" "demo" {
   }
 
   lifecycle {
-    prevent_destroy = true
     ignore_changes  = [ami]
   }
 

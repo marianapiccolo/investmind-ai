@@ -179,7 +179,9 @@ De volta ao Mac:
     aws ec2 wait instance-stopped --profile investmind --region us-east-1 --instance-ids i-0bb284d740d01bbd5
 
 Sair do SSH não desliga a máquina. Stop preserva o disco e os programas
-instalados; o disco EBS continua cobrando. Não use terminate ou terraform destroy.
+instalados; o disco EBS continua cobrando. Para remover o ambiente, siga o
+[procedimento de destruição e recuperação](../../docs/aws-demo-ephemeral.md),
+preservando primeiro o backup verificado e as configurações privadas.
 O diretório /opt/investmind estará vazio até fazermos o deploy da aplicação.
 
 ## Git e validação

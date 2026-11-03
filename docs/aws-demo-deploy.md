@@ -159,7 +159,8 @@ backup; use the [database backup procedure](aws-demo-backup.md).
 
 Image selection does not reverse migrations or recover data. In the configured
 Terraform environment, instance termination deletes the root volume; ordinary
-demo shutdown uses EC2 stop, not terminate or `terraform destroy`.
+demo shutdown can use EC2 stop to preserve the disk. For full teardown, follow
+the [ephemeral recovery procedure](aws-demo-ephemeral.md).
 
 ## Reopen and shut down
 

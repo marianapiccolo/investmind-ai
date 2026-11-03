@@ -4,6 +4,11 @@ This guide covers routine operation of the existing InvestMind demo environment.
 Run commands from the repository root in the **Mac terminal**, except commands
 explicitly marked for an interactive SSH session on EC2.
 
+For removal and recreation between sessions, follow the
+[ephemeral recovery guide](aws-demo-ephemeral.md). Instance IDs, addresses and host
+fingerprints below describe the original deployment. Resolve live values from
+Terraform/AWS for a replacement server and verify its new SSH identity.
+
 ## Environment
 
 | Setting | Configured value |
@@ -215,8 +220,8 @@ aws ec2 describe-instances --profile investmind --region us-east-1 --instance-id
 
 The final result must be `stopped`. Closing the browser, ending SSH or shutting
 down the Mac does not stop EC2. Stopping preserves the EBS-backed data; retained
-storage still incurs charges. Termination and `terraform destroy` are not normal
-demo shutdown operations.
+storage still incurs charges. For complete removal, use the reviewed teardown
+and recovery procedure in the [ephemeral guide](aws-demo-ephemeral.md).
 
 ## Reference
 

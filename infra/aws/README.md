@@ -149,16 +149,17 @@ Commitar: .tf, README, .gitignore, .dockerignore, scripts e .terraform.lock.hcl.
 Não commitar: .terraform/, .tfstate, planos salvos, local.auto.tfvars.json,
 chaves privadas ou credenciais.
 
-A instância tem prevent_destroy para bloquear remoção/substituição pelo
-Terraform enquanto essa proteção estiver na configuração. Isso não bloqueia
-exclusão manual pelo console. A AMI fica fora de alterações automáticas depois
-da criação; atualizações do sistema serão tratadas na configuração do Linux.
+A instância permite destruição pelo Terraform para o ciclo de demonstração
+efêmero. A regra ignore_changes da AMI permanece. O procedimento de
+[destruição e recuperação](../../docs/aws-demo-ephemeral.md) documenta os arquivos
+a preservar, a revisão dos planos e a validação da aplicação restaurada.
 
-STOP preserva este disco EBS e permite iniciar depois.
+STOP preserva o disco EBS, que continua gerando custos.
 TERMINATE remove a instância e, nesta configuração, seu disco raiz.
-Não use terraform destroy para desligar uma demonstração: o desligamento
-normal será feito com stop-instances. Backup e restauração serão configurados
-antes de usarmos dados importantes.
+Para remover o ambiente, conclua o backup, o teste de restauração e a exportação
+das configurações privadas antes de aplicar o plano de destruição revisado.
+Preserve o estado atualizado após a destruição; a cópia anterior é apenas um
+registro histórico e não deve sobrescrever o estado atual.
 
 ## Validação desta entrega
 

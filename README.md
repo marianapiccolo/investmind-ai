@@ -246,6 +246,7 @@ The first stable version is identified by the annotated `v1.0.0` tag after its
 | [AI architecture](docs/ai-architecture.md)                              | Analytics, reports, tool calling, conversations and RAG               |
 | [Local production verification](docs/production-local.md)               | Gunicorn, static assets and production settings on loopback           |
 | [AWS demo operations](docs/aws-demo-operations.md)                      | Routine startup, access, deployment and shutdown                      |
+| [Ephemeral AWS recovery](docs/aws-demo-ephemeral.md)                    | Reviewed teardown, recreation and verified data recovery              |
 | [Registry delivery](docs/registry-delivery.md)                          | CI publication, release selection and private image deployment        |
 | [Archive deployment](docs/aws-demo-deploy.md)                           | Alternative image build and SSH transfer from the Mac                 |
 | [Backup and restore verification](docs/aws-demo-backup.md)              | Database export and isolated restoration tests                        |
